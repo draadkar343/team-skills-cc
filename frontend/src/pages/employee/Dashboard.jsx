@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getMySkills } from '../../api/skillsApi';
 import { getMyTimesheets } from '../../api/timesheetApi';
+import { getMySquadInfo } from '../../api/squadApi';
 import Badge from '../../components/common/Badge';
 import NewsFeed from '../../components/common/NewsFeed';
 
@@ -10,10 +11,12 @@ export default function EmployeeDashboard() {
   const { user } = useAuth();
   const [skills, setSkills] = useState([]);
   const [timesheets, setTimesheets] = useState([]);
+  const [squadInfo, setSquadInfo] = useState(undefined); // undefined = loading, null = no squad
 
   useEffect(() => {
     getMySkills().then(setSkills).catch(() => {});
     getMyTimesheets().then(setTimesheets).catch(() => {});
+    getMySquadInfo().then(setSquadInfo).catch(() => setSquadInfo(null));
   }, []);
 
   const approved = skills.filter(s => s.status === 'approved').length;
@@ -40,6 +43,27 @@ export default function EmployeeDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Squad info */}
+      {squadInfo !== undefined && (
+        <div className="mb-6 bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          {squadInfo ? (
+            <div>
+              <span className="text-sm font-semibold text-gray-800">{squadInfo.name}</span>
+              <span className="text-xs text-gray-400 ml-2">Squad</span>
+              <div className="text-xs text-gray-500 mt-0.5">Lead: {squadInfo.manager_name}</div>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500">You are not assigned to a squad yet.</div>
+          )}
+        </div>
+      )}
 
       <div className="mb-6">
         <NewsFeed />

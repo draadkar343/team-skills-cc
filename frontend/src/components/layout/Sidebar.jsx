@@ -35,6 +35,7 @@ export default function Sidebar() {
         <>
           <NavLink to="/admin" className={linkClass}>Dashboard</NavLink>
           <NavLink to="/admin/users" className={linkClass}>Users</NavLink>
+          <NavLink to="/admin/squads" className={linkClass}>Squads</NavLink>
           <NavLink to="/admin/job-roles" className={linkClass}>Job Roles</NavLink>
           <NavLink to="/admin/skills" className={linkClass}>Skills Catalogue</NavLink>
           <NavLink to="/admin/all-skills" className={linkClass}>All Employee Skills</NavLink>

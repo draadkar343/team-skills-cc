@@ -129,21 +129,59 @@ exports.removeMember = async (req, res, next) => {
 
 exports.getMySquad = async (req, res, next) => {
   try {
-    const { rows: squad } = await db.query(
+    const { rows: squads } = await db.query(
       `SELECT s.*, u.first_name || ' ' || u.last_name AS manager_name
        FROM squads s JOIN users u ON u.id = s.manager_id
-       WHERE s.manager_id = $1 LIMIT 1`,
+       WHERE s.manager_id = $1 ORDER BY s.name`,
       [req.user.id]
     );
-    if (!squad.length) return res.json(null);
+    if (!squads.length) return res.json([]);
 
-    const { rows: members } = await db.query(
-      `SELECT u.id, u.email, u.first_name, u.last_name, sm.joined_at
-       FROM squad_members sm JOIN users u ON u.id = sm.user_id
-       WHERE sm.squad_id = $1 ORDER BY u.last_name`,
-      [squad[0].id]
+    const result = [];
+    for (const squad of squads) {
+      const { rows: members } = await db.query(
+        `SELECT u.id, u.email, u.first_name, u.last_name, sm.joined_at
+         FROM squad_members sm JOIN users u ON u.id = sm.user_id
+         WHERE sm.squad_id = $1 ORDER BY u.last_name`,
+        [squad.id]
+      );
+      result.push({ ...squad, members });
+    }
+    res.json(result);
+  } catch (err) { next(err); }
+};
+
+exports.deleteSquad = async (req, res, next) => {
+  try {
+    const { rowCount } = await db.query('DELETE FROM squads WHERE id = $1', [req.params.id]);
+    if (!rowCount) return res.status(404).json({ error: 'Squad not found' });
+    res.json({ message: 'Squad deleted' });
+  } catch (err) { next(err); }
+};
+
+exports.listManagers = async (_req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, first_name, last_name, email FROM users
+       WHERE role IN ('manager', 'administrator') AND is_active = true
+       ORDER BY last_name, first_name`
     );
-    res.json({ ...squad[0], members });
+    res.json(rows);
+  } catch (err) { next(err); }
+};
+
+exports.getEmployeeSquad = async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT s.id, s.name, u.first_name || ' ' || u.last_name AS manager_name,
+              u.email AS manager_email
+       FROM squad_members sm
+       JOIN squads s ON s.id = sm.squad_id
+       JOIN users u ON u.id = s.manager_id
+       WHERE sm.user_id = $1`,
+      [req.user.id]
+    );
+    res.json(rows[0] || null);
   } catch (err) { next(err); }
 };
 

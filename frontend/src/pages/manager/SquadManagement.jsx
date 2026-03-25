@@ -7,7 +7,8 @@ import Modal from '../../components/common/Modal';
 const emptyForm = { email: '', password: '', firstName: '', lastName: '' };
 
 export default function SquadManagement() {
-  const [squad, setSquad] = useState(null);
+  const [squads, setSquads] = useState([]);
+  const [activeSquadId, setActiveSquadId] = useState(null);
   const [unassigned, setUnassigned] = useState([]);
   const [loading, setLoading] = useState(false);
   const [createModal, setCreateModal] = useState(false);
@@ -17,24 +18,27 @@ export default function SquadManagement() {
 
   const load = async () => {
     const [s, u] = await Promise.all([getMySquad(), getUnassigned()]);
-    setSquad(s);
+    setSquads(s);
     setUnassigned(u);
+    if (s.length && !activeSquadId) setActiveSquadId(s[0].id);
   };
 
   useEffect(() => { load(); }, []);
 
+  const activeSquad = squads.find(s => s.id === activeSquadId) || null;
+
   const handleAdd = async (userId) => {
-    if (!squad) return alert('You do not have a squad assigned. Ask an admin to create one for you.');
+    if (!activeSquad) return alert('Select a squad first.');
     setLoading(true);
-    try { await addMember(squad.id, userId); await load(); }
+    try { await addMember(activeSquad.id, userId); await load(); }
     catch (err) { alert(err.response?.data?.error || 'Failed to add member'); }
     finally { setLoading(false); }
   };
 
   const handleRemove = async (userId) => {
-    if (!window.confirm('Remove this member from your squad?')) return;
+    if (!window.confirm('Remove this member from the squad?')) return;
     setLoading(true);
-    try { await removeMember(squad.id, userId); await load(); }
+    try { await removeMember(activeSquad.id, userId); await load(); }
     catch (err) { alert(err.response?.data?.error || 'Failed to remove member'); }
     finally { setLoading(false); }
   };
@@ -47,10 +51,8 @@ export default function SquadManagement() {
       const newUser = await createUser({ ...form, role: 'employee' });
       setCreateModal(false);
       setForm(emptyForm);
-      // If manager has a squad, immediately add the new employee to it
-      if (squad) {
-        try { await addMember(squad.id, newUser.id); }
-        catch { /* squad add is best-effort */ }
+      if (activeSquad) {
+        try { await addMember(activeSquad.id, newUser.id); } catch { /* best-effort */ }
       }
       await load();
     } catch (err) {
@@ -61,62 +63,89 @@ export default function SquadManagement() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">My Squad</h1>
+        <h1 className="text-2xl font-bold">My Squads</h1>
         <Button onClick={() => { setCreateModal(true); setCreateError(''); setForm(emptyForm); }}>
           + New Employee
         </Button>
       </div>
 
-      {!squad ? (
+      {squads.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          <p>No squad assigned yet. Contact an administrator.</p>
+          <p>No squads assigned yet. Contact an administrator.</p>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Current members */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <h2 className="font-semibold mb-4">Squad: {squad.name}</h2>
-            {squad.members?.length === 0 ? (
-              <p className="text-sm text-gray-400">No members yet. Add employees from the right panel.</p>
-            ) : (
-              <div className="space-y-2">
-                {squad.members.map(m => (
-                  <div key={m.id} className="flex justify-between items-center py-2 border-b last:border-0">
-                    <div>
-                      <div className="font-medium text-sm">{m.first_name} {m.last_name}</div>
-                      <div className="text-xs text-gray-400">{m.email}</div>
-                    </div>
-                    <Button variant="danger" className="py-1 px-2 text-xs" onClick={() => handleRemove(m.id)} loading={loading}>
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <>
+          {/* Squad tabs */}
+          {squads.length > 1 && (
+            <div className="flex gap-2 mb-6 border-b border-gray-200">
+              {squads.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => setActiveSquadId(s.id)}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    s.id === activeSquadId
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {s.name}
+                  <span className="ml-1.5 text-xs bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5">
+                    {s.members?.length ?? 0}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
-          {/* Unassigned employees */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <h2 className="font-semibold mb-4">Unassigned Employees</h2>
-            {unassigned.length === 0 ? (
-              <p className="text-sm text-gray-400">All employees are assigned to squads.</p>
-            ) : (
-              <div className="space-y-2">
-                {unassigned.map(u => (
-                  <div key={u.id} className="flex justify-between items-center py-2 border-b last:border-0">
-                    <div>
-                      <div className="font-medium text-sm">{u.first_name} {u.last_name}</div>
-                      <div className="text-xs text-gray-400">{u.email}</div>
-                    </div>
-                    <Button className="py-1 px-2 text-xs" onClick={() => handleAdd(u.id)} loading={loading}>
-                      Add to Squad
-                    </Button>
+          {activeSquad && (
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Current members */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                <h2 className="font-semibold mb-1">{activeSquad.name}</h2>
+                <p className="text-xs text-gray-400 mb-4">{activeSquad.members?.length ?? 0} member{activeSquad.members?.length !== 1 ? 's' : ''}</p>
+                {!activeSquad.members?.length ? (
+                  <p className="text-sm text-gray-400">No members yet. Add employees from the right panel.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {activeSquad.members.map(m => (
+                      <div key={m.id} className="flex justify-between items-center py-2 border-b last:border-0">
+                        <div>
+                          <div className="font-medium text-sm">{m.first_name} {m.last_name}</div>
+                          <div className="text-xs text-gray-400">{m.email}</div>
+                        </div>
+                        <Button variant="danger" className="py-1 px-2 text-xs" onClick={() => handleRemove(m.id)} loading={loading}>
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
-        </div>
+
+              {/* Unassigned employees */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                <h2 className="font-semibold mb-4">Unassigned Employees</h2>
+                {unassigned.length === 0 ? (
+                  <p className="text-sm text-gray-400">All employees are assigned to squads.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {unassigned.map(u => (
+                      <div key={u.id} className="flex justify-between items-center py-2 border-b last:border-0">
+                        <div>
+                          <div className="font-medium text-sm">{u.first_name} {u.last_name}</div>
+                          <div className="text-xs text-gray-400">{u.email}</div>
+                        </div>
+                        <Button className="py-1 px-2 text-xs" onClick={() => handleAdd(u.id)} loading={loading}>
+                          Add to Squad
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Create Employee Modal */}
@@ -141,7 +170,10 @@ export default function SquadManagement() {
               />
             </div>
           ))}
-          <p className="text-xs text-gray-400">The new employee will be created with the Employee role{squad ? ' and added to your squad automatically' : ''}.</p>
+          <p className="text-xs text-gray-400">
+            The new employee will be created with the Employee role
+            {activeSquad ? ` and added to "${activeSquad.name}" automatically` : ''}.
+          </p>
           <div className="flex gap-2 justify-end pt-1">
             <Button variant="secondary" type="button" onClick={() => setCreateModal(false)}>Cancel</Button>
             <Button type="submit" loading={creating}>Create Employee</Button>

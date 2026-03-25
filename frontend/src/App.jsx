@@ -31,6 +31,7 @@ import AuditLog from './pages/admin/AuditLog';
 // Manager extra
 import MainSkillsView from './pages/manager/MainSkillsView';
 import UserManagement from './pages/admin/UserManagement';
+import AdminSquadManagement from './pages/admin/SquadManagement';
 import AllSkillsView from './pages/admin/AllSkillsView';
 import AllTimesheets from './pages/admin/AllTimesheets';
 import SystemConfig from './pages/admin/SystemConfig';
@@ -150,6 +151,11 @@ export default function App() {
       <Route path="/admin/users" element={
         <ProtectedRoute allowedRoles={['administrator']}>
           <AppLayout><UserManagement /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/squads" element={
+        <ProtectedRoute allowedRoles={['administrator']}>
+          <AppLayout><AdminSquadManagement /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/admin/skills" element={
