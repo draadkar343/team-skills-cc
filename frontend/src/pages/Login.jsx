@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { forgotPassword } from '../api/authApi';
 
 export default function Login() {
   const { login } = useAuth();
+  const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
@@ -44,9 +46,26 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-blue-700 mb-2 text-center">Skills Management</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800">
+      <button
+        onClick={toggle}
+        className="fixed top-4 right-4 p-2 rounded-lg bg-white dark:bg-gray-700 shadow text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {theme === 'dark' ? (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M12 3v1m0 16v1m8.66-9h-1M4.34 12h-1m15.07-6.07-.7.7M6.34 17.66l-.7.7m12.73 0-.7-.7M6.34 6.34l-.7-.7M12 8a4 4 0 100 8 4 4 0 000-8z" />
+          </svg>
+        ) : (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        )}
+      </button>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 w-full max-w-sm">
+        <h1 className="text-2xl font-bold text-blue-700 dark:text-blue-400 mb-2 text-center">Skills Management</h1>
 
         {!showForgot ? (
           <>
@@ -58,7 +77,7 @@ export default function Login() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
                 <input
                   type="email"
                   required
@@ -94,7 +113,7 @@ export default function Login() {
                 {loading ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
-            <p className="text-xs text-gray-400 text-center mt-4">Default admin: admin@company.com</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-4">Default admin: admin@company.com</p>
           </>
         ) : (
           <>
@@ -111,7 +130,7 @@ export default function Login() {
                 )}
                 <form onSubmit={handleForgot} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
                     <input
                       type="email"
                       required

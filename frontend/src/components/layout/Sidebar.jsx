@@ -4,14 +4,16 @@ import { useAuth } from '../../context/AuthContext';
 
 const linkClass = ({ isActive }) =>
   `block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-    isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+    isActive
+      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+      : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
   }`;
 
 export default function Sidebar() {
   const { user } = useAuth();
 
   return (
-    <aside className="w-56 min-h-screen bg-white border-r border-gray-200 p-4 flex flex-col gap-1">
+    <aside className="w-56 min-h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4 flex flex-col gap-1">
       {user?.role === 'employee' && (
         <>
           <NavLink to="/dashboard" className={linkClass}>Dashboard</NavLink>
@@ -47,7 +49,7 @@ export default function Sidebar() {
           <NavLink to="/admin/audit" className={linkClass}>Audit Log</NavLink>
         </>
       )}
-      <hr className="my-2 border-gray-200" />
+      <hr className="my-2 border-gray-200 dark:border-gray-700" />
       <NavLink to="/profile" className={linkClass}>My Profile</NavLink>
     </aside>
   );
