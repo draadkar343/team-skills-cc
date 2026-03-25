@@ -1,15 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, process.env.UPLOAD_DIR || path.join(__dirname, '../uploads'));
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `logo_${Date.now()}${ext}`);
-  },
-});
+const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, '../uploads');
 
 const fileFilter = (_req, file, cb) => {
   const allowed = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'];
@@ -20,4 +12,24 @@ const fileFilter = (_req, file, cb) => {
   }
 };
 
-module.exports = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
+const logoStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `logo_${Date.now()}${ext}`);
+  },
+});
+
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `avatar_${req.user.id}_${Date.now()}${ext}`);
+  },
+});
+
+const logoUpload = multer({ storage: logoStorage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
+const avatarUpload = multer({ storage: avatarStorage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
+
+module.exports = logoUpload;
+module.exports.avatarUpload = avatarUpload;

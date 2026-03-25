@@ -8,7 +8,7 @@ exports.login = async (req, res, next) => {
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
     const { rows } = await db.query(
-      'SELECT id, email, password_hash, first_name, last_name, role, is_active FROM users WHERE email = $1',
+      'SELECT id, email, password_hash, first_name, last_name, role, is_active, avatar_url FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
     const user = rows[0];
@@ -20,7 +20,7 @@ exports.login = async (req, res, next) => {
     const token = signToken(user.id, user.role);
     res.json({
       token,
-      user: { id: user.id, email: user.email, firstName: user.first_name, lastName: user.last_name, role: user.role },
+      user: { id: user.id, email: user.email, firstName: user.first_name, lastName: user.last_name, role: user.role, avatarUrl: user.avatar_url },
     });
   } catch (err) { next(err); }
 };
@@ -80,6 +80,15 @@ exports.updateProfile = async (req, res, next) => {
     }
 
     res.json({ id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, role: u.role, biography: u.biography, jobRoleId: u.job_role_id });
+  } catch (err) { next(err); }
+};
+
+exports.uploadAvatar = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const avatarUrl = `/uploads/${req.file.filename}`;
+    await db.query('UPDATE users SET avatar_url = $1, updated_at = NOW() WHERE id = $2', [avatarUrl, req.user.id]);
+    res.json({ avatarUrl });
   } catch (err) { next(err); }
 };
 

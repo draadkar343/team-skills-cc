@@ -10,5 +10,6 @@ export const updateEntry = (id, entryId, data) => api.patch(`/timesheets/${id}/e
 export const deleteEntry = (id, entryId) => api.delete(`/timesheets/${id}/entries/${entryId}`).then(r => r.data);
 export const getPendingTimesheets = () => api.get('/timesheets/pending').then(r => r.data);
 export const approveTimesheet = (id) => api.post(`/timesheets/${id}/approve`).then(r => r.data);
+export const bulkApproveTimesheets = (ids) => api.post('/timesheets/bulk-approve', { ids }).then(r => r.data);
 export const rejectTimesheet = (id, reason) => api.post(`/timesheets/${id}/reject`, { reason }).then(r => r.data);
 export const getAllTimesheets = () => api.get('/timesheets/all').then(r => r.data);

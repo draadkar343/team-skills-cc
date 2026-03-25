@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { getMe, updateProfile, changePassword } from '../../api/authApi';
+import React, { useEffect, useRef, useState } from 'react';
+import { getMe, updateProfile, uploadAvatar, changePassword } from '../../api/authApi';
 import { getJobRoles } from '../../api/jobRoleApi';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/common/Button';
 
 export default function Profile() {
-  const { user: authUser, login } = useAuth();
+  const { user: authUser, updateUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [jobRoles, setJobRoles] = useState([]);
   const [form, setForm] = useState({ firstName: '', lastName: '', newEmail: '', jobRoleId: '' });
@@ -14,6 +14,9 @@ export default function Profile() {
   const [pwMsg, setPwMsg] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
+  const [avatarMsg, setAvatarMsg] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
 
   useEffect(() => {
     Promise.all([getMe(), getJobRoles()]).then(([u, roles]) => {
@@ -70,6 +73,26 @@ export default function Profile() {
     } finally { setSavingPw(false); }
   };
 
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    setAvatarMsg(null);
+    const formData = new FormData();
+    formData.append('avatar', file);
+    try {
+      const { avatarUrl } = await uploadAvatar(formData);
+      setProfile(p => ({ ...p, avatarUrl }));
+      updateUser({ avatarUrl });
+      setAvatarMsg({ type: 'success', text: 'Profile picture updated.' });
+    } catch (err) {
+      setAvatarMsg({ type: 'error', text: err.response?.data?.error || 'Failed to upload image.' });
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = '';
+    }
+  };
+
   if (!profile) return <div className="p-6 text-gray-400">Loading...</div>;
 
   const roleBadge = {
@@ -81,6 +104,50 @@ export default function Profile() {
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">My Profile</h1>
+
+      {/* Avatar */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-5">
+        <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+          {profile.avatarUrl ? (
+            <img
+              src={profile.avatarUrl}
+              alt="Profile"
+              className="h-20 w-20 rounded-full object-cover border-2 border-gray-200"
+            />
+          ) : (
+            <div className="h-20 w-20 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-2xl font-bold border-2 border-gray-200">
+              {profile.firstName?.[0]}{profile.lastName?.[0]}
+            </div>
+          )}
+          <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <span className="text-white text-xs font-medium">Change</span>
+          </div>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-gray-700">Profile Picture</p>
+          <p className="text-xs text-gray-400 mt-0.5">JPEG, PNG, WebP or SVG · Max 5 MB</p>
+          <button
+            type="button"
+            disabled={uploadingAvatar}
+            onClick={() => avatarInputRef.current?.click()}
+            className="mt-2 text-xs text-blue-600 hover:underline disabled:opacity-50"
+          >
+            {uploadingAvatar ? 'Uploading…' : 'Upload new picture'}
+          </button>
+          {avatarMsg && (
+            <p className={`text-xs mt-1 ${avatarMsg.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+              {avatarMsg.text}
+            </p>
+          )}
+        </div>
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/svg+xml"
+          className="hidden"
+          onChange={handleAvatarChange}
+        />
+      </div>
 
       {/* Profile details */}
       <form onSubmit={handleSaveProfile} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">

@@ -297,6 +297,45 @@ exports.rejectTimesheet = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.bulkApproveTimesheets = async (req, res, next) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || !ids.length) {
+      return res.status(400).json({ error: 'ids array required' });
+    }
+
+    // Only approve timesheets that belong to this manager's squad and are pending
+    const { rows: valid } = await db.query(
+      `SELECT t.id FROM timesheets t
+       JOIN squad_members sm ON sm.user_id = t.user_id
+       JOIN squads s ON s.id = sm.squad_id
+       WHERE t.id = ANY($1) AND s.manager_id = $2 AND t.status = 'pending'`,
+      [ids, req.user.id]
+    );
+    if (!valid.length) return res.status(404).json({ error: 'No valid pending timesheets found' });
+
+    const validIds = valid.map(r => r.id);
+    await db.query(
+      `UPDATE timesheets SET status = 'approved', reviewed_by = $1, reviewed_at = NOW(), updated_at = NOW()
+       WHERE id = ANY($2)`,
+      [req.user.id, validIds]
+    );
+
+    const mgr = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]);
+    const mgrName = `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`;
+    const { rows: details } = await db.query(
+      `SELECT u.email, u.first_name, t.week_start_date
+       FROM timesheets t JOIN users u ON u.id = t.user_id WHERE t.id = ANY($1)`,
+      [validIds]
+    );
+    for (const d of details) {
+      email.sendTimesheetApproved(d.email, d.first_name, String(d.week_start_date).slice(0, 10), mgrName);
+    }
+
+    res.json({ approved: validIds.length, skipped: ids.length - validIds.length });
+  } catch (err) { next(err); }
+};
+
 exports.getAllTimesheets = async (_req, res, next) => {
   try {
     const { rows } = await db.query(

@@ -28,6 +28,13 @@ export default function Navbar() {
         <div className="flex items-center gap-4 text-sm">
           <span className="opacity-80">{user?.firstName} {user?.lastName}</span>
           <span className="px-2 py-0.5 bg-blue-500 rounded capitalize text-xs">{user?.role}</span>
+          {user?.avatarUrl ? (
+            <img src={user.avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full object-cover border-2 border-blue-400" />
+          ) : (
+            <div className="h-8 w-8 rounded-full bg-blue-500 border-2 border-blue-400 flex items-center justify-center text-xs font-bold">
+              {user?.firstName?.[0]}{user?.lastName?.[0]}
+            </div>
+          )}
           <button onClick={handleLogout} className="hover:underline">Logout</button>
         </div>
       </div>

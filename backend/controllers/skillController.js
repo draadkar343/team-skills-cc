@@ -360,6 +360,54 @@ exports.rejectSkill = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.bulkApproveSkills = async (req, res, next) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || !ids.length) {
+      return res.status(400).json({ error: 'ids array required' });
+    }
+
+    // Only approve skills that belong to this manager's squad and are pending
+    const { rows: valid } = await db.query(
+      `SELECT es.id FROM employee_skills es
+       JOIN squad_members sm ON sm.user_id = es.user_id
+       JOIN squads s ON s.id = sm.squad_id
+       WHERE es.id = ANY($1) AND s.manager_id = $2 AND es.status = 'pending'`,
+      [ids, req.user.id]
+    );
+    if (!valid.length) return res.status(404).json({ error: 'No valid pending skills found' });
+
+    const validIds = valid.map(r => r.id);
+    await db.query(
+      `UPDATE employee_skills SET status = 'approved', reviewed_by = $1, reviewed_at = NOW(), updated_at = NOW()
+       WHERE id = ANY($2)`,
+      [req.user.id, validIds]
+    );
+    for (const id of validIds) {
+      await db.query(
+        'INSERT INTO skill_workflow_history (employee_skill_id, changed_by, from_status, to_status) VALUES ($1, $2, $3, $4)',
+        [id, req.user.id, 'pending', 'approved']
+      );
+    }
+
+    const mgr = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]);
+    const mgrName = `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`;
+    const { rows: details } = await db.query(
+      `SELECT u.email, u.first_name, sc.name AS skill_name
+       FROM employee_skills es
+       JOIN users u ON u.id = es.user_id
+       JOIN skills_catalogue sc ON sc.id = es.skill_id
+       WHERE es.id = ANY($1)`,
+      [validIds]
+    );
+    for (const d of details) {
+      email.sendSkillApproved(d.email, d.first_name, d.skill_name, mgrName);
+    }
+
+    res.json({ approved: validIds.length, skipped: ids.length - validIds.length });
+  } catch (err) { next(err); }
+};
+
 exports.getAllSkills = async (_req, res, next) => {
   try {
     const { rows } = await db.query(

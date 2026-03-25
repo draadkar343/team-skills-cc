@@ -16,6 +16,7 @@ router.get('/catalogue/all', auth, role('administrator'), c.getAllCatalogue);
 
 // Manager approvals
 router.get('/pending', auth, role('manager'), c.getPendingSkills);
+router.post('/bulk-approve', auth, role('manager'), c.bulkApproveSkills);
 router.post('/:id/approve', auth, role('manager'), c.approveSkill);
 router.post('/:id/reject', auth, role('manager'), c.rejectSkill);
 

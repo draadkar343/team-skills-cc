@@ -9,6 +9,7 @@ export const submitSkill = (id) => api.post(`/skills/mine/${id}/submit`).then(r 
 export const submitAllSkills = () => api.post('/skills/mine/submit-all').then(r => r.data);
 export const getPendingSkills = () => api.get('/skills/pending').then(r => r.data);
 export const approveSkill = (id) => api.post(`/skills/${id}/approve`).then(r => r.data);
+export const bulkApproveSkills = (ids) => api.post('/skills/bulk-approve', { ids }).then(r => r.data);
 export const rejectSkill = (id, reason) => api.post(`/skills/${id}/reject`, { reason }).then(r => r.data);
 export const getAllSkills = () => api.get('/skills/all').then(r => r.data);
 export const getAllCatalogue = () => api.get('/skills/catalogue/all').then(r => r.data);

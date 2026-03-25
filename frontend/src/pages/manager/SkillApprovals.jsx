@@ -1,23 +1,40 @@
 import React, { useEffect, useState } from 'react';
-import { getPendingSkills, approveSkill, rejectSkill } from '../../api/skillsApi';
+import { getPendingSkills, approveSkill, bulkApproveSkills, rejectSkill } from '../../api/skillsApi';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 
 export default function SkillApprovals() {
   const [skills, setSkills] = useState([]);
+  const [selected, setSelected] = useState(new Set());
   const [rejectTarget, setRejectTarget] = useState(null);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
-  const load = () => getPendingSkills().then(setSkills).catch(() => {});
+  const load = () => getPendingSkills().then(data => { setSkills(data); setSelected(new Set()); }).catch(() => {});
   useEffect(() => { load(); }, []);
+
+  const allSelected = skills.length > 0 && selected.size === skills.length;
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(skills.map(s => s.id)));
+  const toggleOne = (id) => setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
   const handleApprove = async (id) => {
     setLoading(true);
     try { await approveSkill(id); await load(); }
     catch (err) { alert(err.response?.data?.error || 'Failed'); }
     finally { setLoading(false); }
+  };
+
+  const handleBulkApprove = async () => {
+    if (!selected.size) return;
+    setBulkLoading(true);
+    try {
+      const result = await bulkApproveSkills([...selected]);
+      await load();
+      if (result.skipped > 0) alert(`${result.approved} approved. ${result.skipped} skipped (already processed).`);
+    } catch (err) { alert(err.response?.data?.error || 'Bulk approve failed'); }
+    finally { setBulkLoading(false); }
   };
 
   const handleReject = async () => {
@@ -34,7 +51,14 @@ export default function SkillApprovals() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Skill Approvals</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Skill Approvals</h1>
+        {selected.size > 0 && (
+          <Button variant="success" loading={bulkLoading} onClick={handleBulkApprove}>
+            Approve Selected ({selected.size})
+          </Button>
+        )}
+      </div>
 
       {skills.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
@@ -46,6 +70,15 @@ export default function SkillApprovals() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
+                <th className="p-4 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    className="rounded border-gray-300 cursor-pointer"
+                    title="Select all"
+                  />
+                </th>
                 <th className="text-left p-4 font-medium text-gray-600">Employee</th>
                 <th className="text-left p-4 font-medium text-gray-600">Skill</th>
                 <th className="text-left p-4 font-medium text-gray-600">Category</th>
@@ -57,7 +90,15 @@ export default function SkillApprovals() {
             </thead>
             <tbody>
               {skills.map(s => (
-                <tr key={s.id} className="border-b last:border-0 hover:bg-gray-50">
+                <tr key={s.id} className={`border-b last:border-0 hover:bg-gray-50 ${selected.has(s.id) ? 'bg-blue-50' : ''}`}>
+                  <td className="p-4">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(s.id)}
+                      onChange={() => toggleOne(s.id)}
+                      className="rounded border-gray-300 cursor-pointer"
+                    />
+                  </td>
                   <td className="p-4">
                     <div className="font-medium">{s.first_name} {s.last_name}</div>
                     <div className="text-gray-400 text-xs">{s.email}</div>

@@ -8,6 +8,7 @@ router.get('/all', auth, role('administrator'), c.getAllTimesheets);
 
 // Manager
 router.get('/pending', auth, role('manager'), c.getPendingTimesheets);
+router.post('/bulk-approve', auth, role('manager'), c.bulkApproveTimesheets);
 router.post('/:id/approve', auth, role('manager'), c.approveTimesheet);
 router.post('/:id/reject', auth, role('manager'), c.rejectTimesheet);
 
