@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { getAuditLog, getAuditTables } from '../../api/auditApi';
+import { getAuditLog, getAuditTables, getRetentionPolicies, saveRetentionPolicies, purgeByRetention } from '../../api/auditApi';
 import Button from '../../components/common/Button';
+import Modal from '../../components/common/Modal';
 
 const OP_COLOURS = {
   INSERT: 'bg-green-100 text-green-700',
@@ -85,7 +86,53 @@ export default function AuditLog() {
   const [filters, setFilters] = useState({ table: '', operation: '', rowId: '', from: '', to: '' });
   const [applied, setApplied] = useState({});
 
+  // Retention state
+  const [retentionModal, setRetentionModal] = useState(false);
+  const [policies, setPolicies] = useState([]); // [{ table_name, retention_days }]
+  const [retentionDraft, setRetentionDraft] = useState({}); // { table_name: days_string }
+  const [savingRetention, setSavingRetention] = useState(false);
+  const [purging, setPurging] = useState(false);
+  const [purgeResult, setPurgeResult] = useState(null);
+
   useEffect(() => { getAuditTables().then(setTables); }, []);
+
+  const openRetention = async () => {
+    setPurgeResult(null);
+    const data = await getRetentionPolicies();
+    setPolicies(data);
+    const draft = {};
+    data.forEach(p => { draft[p.table_name] = p.retention_days != null ? String(p.retention_days) : ''; });
+    setRetentionDraft(draft);
+    setRetentionModal(true);
+  };
+
+  const handleSaveRetention = async () => {
+    setSavingRetention(true);
+    try {
+      const payload = Object.entries(retentionDraft).map(([table_name, val]) => ({
+        table_name,
+        retention_days: val === '' ? null : parseInt(val),
+      }));
+      await saveRetentionPolicies(payload);
+      const updated = await getRetentionPolicies();
+      setPolicies(updated);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to save');
+    } finally { setSavingRetention(false); }
+  };
+
+  const handlePurge = async () => {
+    if (!window.confirm('Delete all audit log entries that exceed their retention period? This cannot be undone.')) return;
+    setPurging(true);
+    setPurgeResult(null);
+    try {
+      const result = await purgeByRetention();
+      setPurgeResult(result);
+      load(applied, page);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Purge failed');
+    } finally { setPurging(false); }
+  };
 
   const load = useCallback(async (f, p) => {
     setLoading(true);
@@ -121,7 +168,10 @@ export default function AuditLog() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Audit Log</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Audit Log</h1>
+        <Button variant="secondary" onClick={openRetention}>Retention &amp; Purge</Button>
+      </div>
 
       {/* Filters */}
       <form onSubmit={applyFilters} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
@@ -221,6 +271,78 @@ export default function AuditLog() {
           </div>
         )}
       </div>
+
+      {/* Retention & Purge Modal */}
+      <Modal open={retentionModal} onClose={() => setRetentionModal(false)} title="Retention Policies & Purge">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Set how many days to retain audit entries per table. Leave blank to keep indefinitely.
+          </p>
+
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium text-gray-600">Table</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-600 w-36">Retain for (days)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {policies.map(p => (
+                  <tr key={p.table_name} className="border-b last:border-0">
+                    <td className="px-3 py-2 font-mono text-xs text-gray-700">{p.table_name}</td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="∞ forever"
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                        value={retentionDraft[p.table_name] ?? ''}
+                        onChange={e => setRetentionDraft(d => ({ ...d, [p.table_name]: e.target.value }))}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-between items-center pt-1">
+            <Button
+              variant="danger"
+              onClick={handlePurge}
+              loading={purging}
+              disabled={policies.every(p => retentionDraft[p.table_name] === '')}
+            >
+              Purge Expired Logs Now
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setRetentionModal(false)}>Close</Button>
+              <Button onClick={handleSaveRetention} loading={savingRetention}>Save Policies</Button>
+            </div>
+          </div>
+
+          {purgeResult && (
+            <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+              <p className="font-semibold text-gray-700 mb-2">
+                Purge complete — {purgeResult.totalDeleted.toLocaleString()} entries deleted
+              </p>
+              {purgeResult.purged.length === 0 ? (
+                <p className="text-gray-400 text-xs">Nothing to purge — all entries are within retention windows.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {purgeResult.purged.map(r => (
+                    <li key={r.table_name} className="flex justify-between text-xs">
+                      <span className="font-mono text-gray-600">{r.table_name}</span>
+                      <span className="text-red-600 font-medium">{r.deleted.toLocaleString()} deleted</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

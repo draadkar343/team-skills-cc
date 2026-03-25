@@ -62,3 +62,68 @@ exports.getAuditLog = async (req, res, next) => {
 };
 
 exports.getTables = (_req, res) => res.json(ALLOWED_TABLES);
+
+exports.getRetentionPolicies = async (_req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT table_name, retention_days FROM audit_retention_policies ORDER BY table_name'
+    );
+    // Return all known tables, filling in retention_days where set (null = keep forever)
+    const map = Object.fromEntries(rows.map(r => [r.table_name, r.retention_days]));
+    const result = ALLOWED_TABLES.map(t => ({ table_name: t, retention_days: map[t] ?? null }));
+    res.json(result);
+  } catch (err) { next(err); }
+};
+
+exports.saveRetentionPolicies = async (req, res, next) => {
+  try {
+    // req.body: [{ table_name, retention_days }]  retention_days=null means delete the policy
+    const policies = req.body;
+    if (!Array.isArray(policies)) return res.status(400).json({ error: 'Expected array' });
+
+    for (const { table_name, retention_days } of policies) {
+      if (!ALLOWED_TABLES.includes(table_name)) continue;
+      if (retention_days === null || retention_days === '') {
+        await db.query('DELETE FROM audit_retention_policies WHERE table_name = $1', [table_name]);
+      } else {
+        const days = parseInt(retention_days);
+        if (isNaN(days) || days < 1) continue;
+        await db.query(
+          `INSERT INTO audit_retention_policies (table_name, retention_days, updated_by, updated_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (table_name) DO UPDATE SET retention_days = $2, updated_by = $3, updated_at = NOW()`,
+          [table_name, days, req.user.id]
+        );
+      }
+    }
+    res.json({ message: 'Retention policies saved' });
+  } catch (err) { next(err); }
+};
+
+exports.purgeByRetention = async (req, res, next) => {
+  try {
+    const { rows: policies } = await db.query(
+      'SELECT table_name, retention_days FROM audit_retention_policies'
+    );
+
+    if (!policies.length) return res.json({ purged: [], totalDeleted: 0 });
+
+    const purged = [];
+    let totalDeleted = 0;
+
+    for (const { table_name, retention_days } of policies) {
+      const { rowCount } = await db.query(
+        `DELETE FROM audit_log
+         WHERE table_name = $1
+           AND changed_at < NOW() - ($2 || ' days')::INTERVAL`,
+        [table_name, retention_days]
+      );
+      if (rowCount > 0) {
+        purged.push({ table_name, deleted: rowCount, retention_days });
+        totalDeleted += rowCount;
+      }
+    }
+
+    res.json({ purged, totalDeleted });
+  } catch (err) { next(err); }
+};

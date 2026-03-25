@@ -114,6 +114,16 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create news_items table:', err.message));
 
+// Create audit_retention_policies table if it doesn't exist
+db.query(`
+  CREATE TABLE IF NOT EXISTS audit_retention_policies (
+    table_name     VARCHAR(100) PRIMARY KEY,
+    retention_days INTEGER NOT NULL CHECK (retention_days > 0),
+    updated_by     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create audit_retention_policies:', err.message));
+
 // Create password_reset_tokens table if it doesn't exist (safe to run on every start)
 db.query(`
   CREATE TABLE IF NOT EXISTS password_reset_tokens (
