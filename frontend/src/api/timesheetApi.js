@@ -1,0 +1,14 @@
+import api from './axiosInstance';
+export const getMyTimesheets = () => api.get('/timesheets/mine').then(r => r.data);
+export const createTimesheet = (data) => api.post('/timesheets', data).then(r => r.data);
+export const getTimesheet = (id) => api.get(`/timesheets/${id}`).then(r => r.data);
+export const updateTimesheet = (id, data) => api.patch(`/timesheets/${id}`, data).then(r => r.data);
+export const deleteTimesheet = (id) => api.delete(`/timesheets/${id}`).then(r => r.data);
+export const submitTimesheet = (id) => api.post(`/timesheets/${id}/submit`).then(r => r.data);
+export const addEntry = (id, data) => api.post(`/timesheets/${id}/entries`, data).then(r => r.data);
+export const updateEntry = (id, entryId, data) => api.patch(`/timesheets/${id}/entries/${entryId}`, data).then(r => r.data);
+export const deleteEntry = (id, entryId) => api.delete(`/timesheets/${id}/entries/${entryId}`).then(r => r.data);
+export const getPendingTimesheets = () => api.get('/timesheets/pending').then(r => r.data);
+export const approveTimesheet = (id) => api.post(`/timesheets/${id}/approve`).then(r => r.data);
+export const rejectTimesheet = (id, reason) => api.post(`/timesheets/${id}/reject`, { reason }).then(r => r.data);
+export const getAllTimesheets = () => api.get('/timesheets/all').then(r => r.data);

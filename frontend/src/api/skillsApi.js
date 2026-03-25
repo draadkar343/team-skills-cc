@@ -1,0 +1,17 @@
+import api from './axiosInstance';
+export const getCatalogue = () => api.get('/skills/catalogue').then(r => r.data);
+export const getCategories = () => api.get('/skills/categories').then(r => r.data);
+export const getMySkills = () => api.get('/skills/mine').then(r => r.data);
+export const addSkill = (data) => api.post('/skills/mine', data).then(r => r.data);
+export const updateMySkill = (id, data) => api.patch(`/skills/mine/${id}`, data).then(r => r.data);
+export const deleteMySkill = (id) => api.delete(`/skills/mine/${id}`).then(r => r.data);
+export const submitSkill = (id) => api.post(`/skills/mine/${id}/submit`).then(r => r.data);
+export const submitAllSkills = () => api.post('/skills/mine/submit-all').then(r => r.data);
+export const getPendingSkills = () => api.get('/skills/pending').then(r => r.data);
+export const approveSkill = (id) => api.post(`/skills/${id}/approve`).then(r => r.data);
+export const rejectSkill = (id, reason) => api.post(`/skills/${id}/reject`, { reason }).then(r => r.data);
+export const getAllSkills = () => api.get('/skills/all').then(r => r.data);
+export const getAllCatalogue = () => api.get('/skills/catalogue/all').then(r => r.data);
+export const createCatalogueSkill = (data) => api.post('/skills/catalogue', data).then(r => r.data);
+export const updateCatalogueSkill = (id, data) => api.patch(`/skills/catalogue/${id}`, data).then(r => r.data);
+export const createCategory = (data) => api.post('/skills/categories', data).then(r => r.data);
