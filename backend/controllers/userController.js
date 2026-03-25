@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const { hashPassword } = require('../services/authService');
 const email = require('../services/emailService');
+const webhook = require('../services/webhookService');
 
 exports.listUsers = async (req, res, next) => {
   try {
@@ -29,6 +30,7 @@ exports.createUser = async (req, res, next) => {
     );
     const u = rows[0];
     email.sendWelcome(u.email, u.first_name, password);
+    webhook.fire('user.created', { userId: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, role: u.role });
     res.status(201).json({ id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, role: u.role });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email already exists' });

@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const email = require('../services/emailService');
+const webhook = require('../services/webhookService');
 
 async function getManagerForUser(userId) {
   const { rows } = await db.query(
@@ -98,10 +99,12 @@ exports.submitCert = async (req, res, next) => {
       db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]),
       getManagerForUser(req.user.id),
     ]);
-    if (manager) {
-      const empName = `${userRow.rows[0].first_name} ${userRow.rows[0].last_name}`;
-      email.sendCertSubmitted(manager.email, manager.first_name, empName, cert.name);
-    }
+    const empName = `${userRow.rows[0].first_name} ${userRow.rows[0].last_name}`;
+    if (manager) email.sendCertSubmitted(manager.email, manager.first_name, empName, cert.name);
+    webhook.fire('cert.submitted', {
+      certId: cert.id, userId: cert.user_id, userName: empName,
+      certName: cert.name, provider: cert.provider, dateObtained: cert.date_obtained,
+    });
     res.json(cert);
   } catch (err) { next(err); }
 };
@@ -146,10 +149,14 @@ exports.approveCert = async (req, res, next) => {
       db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]),
       db.query('SELECT first_name, email FROM users WHERE id = $1', [cert.user_id]),
     ]);
-    email.sendCertApproved(
-      empRow.rows[0].email, empRow.rows[0].first_name, cert.name,
-      `${mgrRow.rows[0].first_name} ${mgrRow.rows[0].last_name}`
-    );
+    const mgrName = `${mgrRow.rows[0].first_name} ${mgrRow.rows[0].last_name}`;
+    email.sendCertApproved(empRow.rows[0].email, empRow.rows[0].first_name, cert.name, mgrName);
+    webhook.fire('cert.approved', {
+      certId: cert.id, userId: cert.user_id,
+      userName: `${empRow.rows[0].first_name} ${empRow.rows[0].last_name}`,
+      certName: cert.name, provider: cert.provider,
+      dateObtained: cert.date_obtained, expirationDate: cert.expiration_date, approvedBy: mgrName,
+    });
     res.json(cert);
   } catch (err) { next(err); }
 };
@@ -180,10 +187,13 @@ exports.rejectCert = async (req, res, next) => {
       db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]),
       db.query('SELECT first_name, email FROM users WHERE id = $1', [cert.user_id]),
     ]);
-    email.sendCertRejected(
-      empRow.rows[0].email, empRow.rows[0].first_name, cert.name,
-      `${mgrRow.rows[0].first_name} ${mgrRow.rows[0].last_name}`, reason
-    );
+    const mgrName = `${mgrRow.rows[0].first_name} ${mgrRow.rows[0].last_name}`;
+    email.sendCertRejected(empRow.rows[0].email, empRow.rows[0].first_name, cert.name, mgrName, reason);
+    webhook.fire('cert.rejected', {
+      certId: cert.id, userId: cert.user_id,
+      userName: `${empRow.rows[0].first_name} ${empRow.rows[0].last_name}`,
+      certName: cert.name, reason, rejectedBy: mgrName,
+    });
     res.json(cert);
   } catch (err) { next(err); }
 };

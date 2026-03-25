@@ -38,6 +38,7 @@ import NewsManagement from './pages/admin/NewsManagement';
 import MyCertifications from './pages/employee/MyCertifications';
 import CertificationApprovals from './pages/manager/CertificationApprovals';
 import AllCertifications from './pages/admin/AllCertifications';
+import Integrations from './pages/admin/Integrations';
 
 function AppLayout({ children }) {
   return (
@@ -174,6 +175,11 @@ export default function App() {
       <Route path="/admin/audit" element={
         <ProtectedRoute allowedRoles={['administrator']}>
           <AppLayout><AuditLog /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/integrations" element={
+        <ProtectedRoute allowedRoles={['administrator']}>
+          <AppLayout><Integrations /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/admin/certifications" element={

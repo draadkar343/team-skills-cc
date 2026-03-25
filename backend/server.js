@@ -14,10 +14,70 @@ const jobRoleRoutes = require('./routes/jobRoleRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const newsRoutes = require('./routes/newsRoutes');
 const certsRoutes = require('./routes/certsRoutes');
+const integrationsRoutes = require('./routes/integrationsRoutes');
+const publicApiRoutes = require('./routes/publicApiRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 
 const app = express();
+
+// Create API integration tables if they don't exist
+db.query(`
+  CREATE TABLE IF NOT EXISTS api_keys (
+    id           SERIAL PRIMARY KEY,
+    name         VARCHAR(255) NOT NULL,
+    description  TEXT,
+    key_hash     VARCHAR(128) NOT NULL UNIQUE,
+    key_prefix   VARCHAR(12) NOT NULL,
+    scopes       TEXT[] NOT NULL DEFAULT '{}',
+    created_by   INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    last_used_at TIMESTAMPTZ,
+    is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create api_keys:', err.message));
+
+db.query(`
+  CREATE TABLE IF NOT EXISTS external_integrations (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(255) NOT NULL,
+    description TEXT,
+    base_url    VARCHAR(500) NOT NULL,
+    auth_type   VARCHAR(50) NOT NULL DEFAULT 'none',
+    auth_config JSONB NOT NULL DEFAULT '{}',
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by  INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create external_integrations:', err.message));
+
+db.query(`
+  CREATE TABLE IF NOT EXISTS webhooks (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(255) NOT NULL,
+    url         VARCHAR(500) NOT NULL,
+    secret      VARCHAR(128),
+    events      TEXT[] NOT NULL DEFAULT '{}',
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by  INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create webhooks:', err.message));
+
+db.query(`
+  CREATE TABLE IF NOT EXISTS webhook_deliveries (
+    id            SERIAL PRIMARY KEY,
+    webhook_id    INTEGER NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+    event         VARCHAR(100) NOT NULL,
+    payload       JSONB NOT NULL,
+    response_code INTEGER,
+    response_body TEXT,
+    success       BOOLEAN NOT NULL DEFAULT FALSE,
+    delivered_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create webhook_deliveries:', err.message));
 
 // Create employee_certifications table if it doesn't exist
 db.query(`
@@ -81,6 +141,8 @@ app.use('/api/v1/job-roles', jobRoleRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/news', newsRoutes);
 app.use('/api/v1/certs', certsRoutes);
+app.use('/api/v1/integrations', integrationsRoutes);
+app.use('/api/v1/public', publicApiRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 

@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const email = require('../services/emailService');
+const webhook = require('../services/webhookService');
 
 // Query the manager for a given employee user id (via squad membership)
 async function getManagerForUser(userId) {
@@ -209,6 +210,16 @@ exports.submitSkill = async (req, res, next) => {
         `${sc[0]?.name || 'a skill'}`
       );
     }
+    const { rows: sc } = await db.query(
+      `SELECT sc.name, cat.name AS category FROM skills_catalogue sc LEFT JOIN skill_categories cat ON cat.id = sc.category_id WHERE sc.id = $1`,
+      [existing[0].skill_id]
+    );
+    const { rows: emp } = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]);
+    webhook.fire('skill.submitted', {
+      skillId: rows[0].id, userId: req.user.id,
+      userName: `${emp[0].first_name} ${emp[0].last_name}`,
+      skillName: sc[0]?.name, category: sc[0]?.category, weighting: rows[0].weighting,
+    });
     res.json(rows[0]);
   } catch (err) { next(err); }
 };
@@ -301,12 +312,13 @@ exports.approveSkill = async (req, res, next) => {
     );
     if (detail[0]) {
       const mgr = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]);
-      email.sendSkillApproved(
-        detail[0].email,
-        detail[0].first_name,
-        detail[0].skill_name,
-        `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`
-      );
+      const mgrName = `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`;
+      email.sendSkillApproved(detail[0].email, detail[0].first_name, detail[0].skill_name, mgrName);
+      webhook.fire('skill.approved', {
+        skillId: rows[0].id, userId: rows[0].user_id,
+        userName: `${detail[0].first_name} ${detail[0].last_name}`,
+        skillName: detail[0].skill_name, weighting: rows[0].weighting, approvedBy: mgrName,
+      });
     }
     res.json(rows[0]);
   } catch (err) { next(err); }
@@ -348,13 +360,13 @@ exports.rejectSkill = async (req, res, next) => {
     );
     if (detail[0]) {
       const mgr = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]);
-      email.sendSkillRejected(
-        detail[0].email,
-        detail[0].first_name,
-        detail[0].skill_name,
-        `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`,
-        reason
-      );
+      const mgrName = `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`;
+      email.sendSkillRejected(detail[0].email, detail[0].first_name, detail[0].skill_name, mgrName, reason);
+      webhook.fire('skill.rejected', {
+        skillId: rows[0].id, userId: rows[0].user_id,
+        userName: `${detail[0].first_name} ${detail[0].last_name}`,
+        skillName: detail[0].skill_name, reason, rejectedBy: mgrName,
+      });
     }
     res.json(rows[0]);
   } catch (err) { next(err); }
