@@ -1,4 +1,4 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const SYSTEM_PROMPT = `You are a concise navigation assistant for a Skills Management System web app.
 Help the user find their way around the app based on their role. Keep answers short and practical.
@@ -15,9 +15,9 @@ Keep responses to 2–4 sentences unless a step-by-step answer is clearly needed
 
 exports.chat = async (req, res, next) => {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return res.status(503).json({ error: 'LLM not configured — set ANTHROPIC_API_KEY in the environment.' });
+      return res.status(503).json({ error: 'LLM not configured — set GEMINI_API_KEY in the environment.' });
     }
 
     const { message, history = [], role = 'employee' } = req.body;
@@ -25,25 +25,27 @@ exports.chat = async (req, res, next) => {
       return res.status(400).json({ error: 'message is required' });
     }
 
-    const client = new Anthropic({ apiKey });
-
-    // Build messages: prior history + current user message
-    const messages = [
-      ...history.map(h => ({ role: h.from === 'user' ? 'user' : 'assistant', content: h.text })),
-      { role: 'user', content: message },
-    ];
-
-    const response = await client.messages.create({
-      model: process.env.CHAT_MODEL || 'claude-opus-4-6',
-      max_tokens: 1024,
-      system: `${SYSTEM_PROMPT}\n\nThe current user's role is: ${role}.`,
-      messages,
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: process.env.CHAT_MODEL || 'gemini-2.0-flash',
+      systemInstruction: `${SYSTEM_PROMPT}\n\nThe current user's role is: ${role}.`,
     });
 
-    const text = response.content.find(b => b.type === 'text')?.text || '';
+    // Convert history to Gemini format (user/model roles, parts array)
+    const geminiHistory = history.map(h => ({
+      role: h.from === 'user' ? 'user' : 'model',
+      parts: [{ text: h.text }],
+    }));
+
+    const chat = model.startChat({ history: geminiHistory });
+    const result = await chat.sendMessage(message);
+    const text = result.response.text();
+
     res.json({ reply: text });
   } catch (err) {
-    if (err.status === 401) return res.status(503).json({ error: 'Invalid Anthropic API key.' });
+    if (err.status === 400 && err.message?.includes('API_KEY')) {
+      return res.status(503).json({ error: 'Invalid Gemini API key.' });
+    }
     next(err);
   }
 };
