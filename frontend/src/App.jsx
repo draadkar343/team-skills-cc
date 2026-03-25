@@ -35,6 +35,9 @@ import AllSkillsView from './pages/admin/AllSkillsView';
 import AllTimesheets from './pages/admin/AllTimesheets';
 import SystemConfig from './pages/admin/SystemConfig';
 import NewsManagement from './pages/admin/NewsManagement';
+import MyCertifications from './pages/employee/MyCertifications';
+import CertificationApprovals from './pages/manager/CertificationApprovals';
+import AllCertifications from './pages/admin/AllCertifications';
 
 function AppLayout({ children }) {
   return (
@@ -92,6 +95,11 @@ export default function App() {
           <AppLayout><Biography /></AppLayout>
         </ProtectedRoute>
       } />
+      <Route path="/my-certifications" element={
+        <ProtectedRoute allowedRoles={['employee']}>
+          <AppLayout><MyCertifications /></AppLayout>
+        </ProtectedRoute>
+      } />
 
       {/* Profile — all authenticated roles */}
       <Route path="/profile" element={
@@ -109,6 +117,11 @@ export default function App() {
       <Route path="/skill-approvals" element={
         <ProtectedRoute allowedRoles={['manager']}>
           <AppLayout><SkillApprovals /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/cert-approvals" element={
+        <ProtectedRoute allowedRoles={['manager']}>
+          <AppLayout><CertificationApprovals /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/timesheet-approvals" element={
@@ -161,6 +174,11 @@ export default function App() {
       <Route path="/admin/audit" element={
         <ProtectedRoute allowedRoles={['administrator']}>
           <AppLayout><AuditLog /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/certifications" element={
+        <ProtectedRoute allowedRoles={['administrator']}>
+          <AppLayout><AllCertifications /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/admin/news" element={

@@ -16,6 +16,7 @@ export default function Sidebar() {
         <>
           <NavLink to="/dashboard" className={linkClass}>Dashboard</NavLink>
           <NavLink to="/my-skills" className={linkClass}>My Skills</NavLink>
+          <NavLink to="/my-certifications" className={linkClass}>My Certifications</NavLink>
           <NavLink to="/timesheets" className={linkClass}>Timesheets</NavLink>
           <NavLink to="/biography" className={linkClass}>My Biography</NavLink>
         </>
@@ -24,6 +25,7 @@ export default function Sidebar() {
         <>
           <NavLink to="/dashboard" className={linkClass}>Dashboard</NavLink>
           <NavLink to="/skill-approvals" className={linkClass}>Skill Approvals</NavLink>
+          <NavLink to="/cert-approvals" className={linkClass}>Cert Approvals</NavLink>
           <NavLink to="/timesheet-approvals" className={linkClass}>Timesheet Approvals</NavLink>
           <NavLink to="/squad" className={linkClass}>My Squad</NavLink>
           <NavLink to="/manager/main-skills" className={linkClass}>Main Skills</NavLink>
@@ -37,6 +39,7 @@ export default function Sidebar() {
           <NavLink to="/admin/skills" className={linkClass}>Skills Catalogue</NavLink>
           <NavLink to="/admin/all-skills" className={linkClass}>All Employee Skills</NavLink>
           <NavLink to="/admin/all-timesheets" className={linkClass}>All Timesheets</NavLink>
+          <NavLink to="/admin/certifications" className={linkClass}>Certifications</NavLink>
           <NavLink to="/admin/news" className={linkClass}>News</NavLink>
           <NavLink to="/admin/config" className={linkClass}>System Config</NavLink>
           <NavLink to="/admin/audit" className={linkClass}>Audit Log</NavLink>

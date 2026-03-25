@@ -13,10 +13,32 @@ const adminRoutes = require('./routes/adminRoutes');
 const jobRoleRoutes = require('./routes/jobRoleRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const newsRoutes = require('./routes/newsRoutes');
+const certsRoutes = require('./routes/certsRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 
 const app = express();
+
+// Create employee_certifications table if it doesn't exist
+db.query(`
+  CREATE TABLE IF NOT EXISTS employee_certifications (
+    id                SERIAL PRIMARY KEY,
+    user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name              VARCHAR(255) NOT NULL,
+    provider          VARCHAR(255),
+    date_obtained     DATE NOT NULL,
+    expiration_date   DATE,
+    certificate_url   VARCHAR(500),
+    notes             TEXT,
+    status            workflow_status NOT NULL DEFAULT 'draft',
+    submitted_at      TIMESTAMPTZ,
+    reviewed_by       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at       TIMESTAMPTZ,
+    rejection_reason  TEXT,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create employee_certifications table:', err.message));
 
 // Create news_items table if it doesn't exist
 db.query(`
@@ -58,6 +80,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/job-roles', jobRoleRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/news', newsRoutes);
+app.use('/api/v1/certs', certsRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 

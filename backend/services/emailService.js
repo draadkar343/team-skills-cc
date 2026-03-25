@@ -155,6 +155,51 @@ exports.sendTimesheetRejected = (employeeEmail, employeeName, weekStart, manager
   );
 
 /**
+ * Notify a manager that an employee submitted a certification for review.
+ */
+exports.sendCertSubmitted = (managerEmail, managerName, employeeName, certName) =>
+  sendMail(
+    managerEmail,
+    `Certification awaiting approval — ${employeeName}`,
+    layout(
+      'Certification Submitted for Approval',
+      `<p>Hi ${managerName},</p>
+       <p><strong>${employeeName}</strong> has submitted the certification <strong>${certName}</strong> for your review.</p>
+       <p>Please log in to approve or reject it.</p>`
+    )
+  );
+
+/**
+ * Notify an employee that their certification was approved.
+ */
+exports.sendCertApproved = (employeeEmail, employeeName, certName, managerName) =>
+  sendMail(
+    employeeEmail,
+    `Certification approved: ${certName}`,
+    layout(
+      'Your Certification Has Been Approved',
+      `<p>Hi ${employeeName},</p>
+       <p>Your certification <strong>${certName}</strong> has been <span style="color:#16a34a">approved</span> by ${managerName}.</p>`
+    )
+  );
+
+/**
+ * Notify an employee that their certification was rejected.
+ */
+exports.sendCertRejected = (employeeEmail, employeeName, certName, managerName, reason) =>
+  sendMail(
+    employeeEmail,
+    `Certification rejected: ${certName}`,
+    layout(
+      'Your Certification Was Not Approved',
+      `<p>Hi ${employeeName},</p>
+       <p>Your certification <strong>${certName}</strong> has been <span style="color:#dc2626">rejected</span> by ${managerName}.</p>
+       <p><strong>Reason:</strong> ${reason}</p>
+       <p>You can update the certification and resubmit it for approval.</p>`
+    )
+  );
+
+/**
  * Send a password reset link to the user.
  */
 exports.sendPasswordReset = (to, firstName, resetUrl) =>
