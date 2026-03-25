@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getAllSkills, getAllCatalogue, getCategories, createCatalogueSkill, updateCatalogueSkill, createCategory } from '../../api/skillsApi';
+import { getAllSkills, getAllCatalogue, getCategories, createCatalogueSkill, updateCatalogueSkill, createCategory, bulkUploadMainSkills, bulkUploadSubSkills } from '../../api/skillsApi';
 import { getMainSkills } from '../../api/jobRoleApi';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
@@ -19,6 +19,11 @@ export default function AllSkillsView() {
   const [editForm, setEditForm] = useState({ name: '', description: '', categoryId: '', mainSkillId: '', isActive: true });
   const [catName, setCatName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [bulkModal, setBulkModal] = useState(false);
+  const [bulkTab, setBulkTab] = useState('main'); // 'main' | 'sub'
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkResult, setBulkResult] = useState(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const load = async () => {
     const [s, c, cats, ms] = await Promise.all([getAllSkills(), getAllCatalogue(), getCategories(), getMainSkills()]);
@@ -80,6 +85,38 @@ export default function AllSkillsView() {
   };
 
 
+  const downloadTemplate = () => {
+    const templates = {
+      main: 'job_role_name,main_skill_name,description\n"Software Engineer","Backend Development","Core backend competencies"\n',
+      sub: 'job_role_name,main_skill_name,skill_name,category_name,description\n"Software Engineer","Backend Development","Python","Programming","Python programming language"\n',
+    };
+    const blob = new Blob([templates[bulkTab]], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = bulkTab === 'main' ? 'main_skills_template.csv' : 'sub_skills_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkFile) return;
+    setBulkLoading(true);
+    setBulkResult(null);
+    try {
+      const fn = bulkTab === 'main' ? bulkUploadMainSkills : bulkUploadSubSkills;
+      const result = await fn(bulkFile);
+      setBulkResult(result);
+      await load();
+    } catch (err) {
+      setBulkResult({ errors: [err.response?.data?.error || 'Upload failed'] });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const closeBulkModal = () => { setBulkModal(false); setBulkFile(null); setBulkResult(null); };
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex gap-4 mb-6">
@@ -140,6 +177,7 @@ export default function AllSkillsView() {
           <div className="flex gap-2 mb-4">
             <Button onClick={() => setAddModal(true)}>+ Add Skill</Button>
             <Button variant="secondary" onClick={() => setCatModal(true)}>+ Add Category</Button>
+            <Button variant="secondary" onClick={() => { setBulkModal(true); setBulkFile(null); setBulkResult(null); }}>Bulk Upload CSV</Button>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <table className="w-full text-sm">
@@ -270,6 +308,76 @@ export default function AllSkillsView() {
             <Button type="submit" loading={loading}>Add</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={bulkModal} onClose={closeBulkModal} title="Bulk Upload Skills via CSV">
+        <div className="space-y-4">
+          {/* Tab switcher */}
+          <div className="flex gap-2 border-b border-gray-200">
+            <button onClick={() => { setBulkTab('main'); setBulkFile(null); setBulkResult(null); }}
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${bulkTab === 'main' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
+              Main Skills
+            </button>
+            <button onClick={() => { setBulkTab('sub'); setBulkFile(null); setBulkResult(null); }}
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${bulkTab === 'sub' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
+              Sub Skills
+            </button>
+          </div>
+
+          {/* Format hint */}
+          <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500 space-y-1">
+            {bulkTab === 'main' ? (
+              <>
+                <p className="font-medium text-gray-700">Required columns:</p>
+                <p><code>job_role_name, main_skill_name, description</code></p>
+                <p>Job role must already exist. Duplicates are skipped.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium text-gray-700">Required columns:</p>
+                <p><code>job_role_name, main_skill_name, skill_name, category_name, description</code></p>
+                <p>job_role_name, main_skill_name, category_name and description are optional. Categories are auto-created if not found.</p>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button onClick={downloadTemplate} className="text-xs text-blue-600 hover:underline">
+              Download template CSV
+            </button>
+          </div>
+
+          {/* File picker */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Select CSV File</label>
+            <input type="file" accept=".csv,text/csv"
+              className="text-sm text-gray-600"
+              onChange={e => { setBulkFile(e.target.files[0] || null); setBulkResult(null); }} />
+          </div>
+
+          {/* Results */}
+          {bulkResult && (
+            <div className="rounded-lg border p-3 space-y-2 text-sm">
+              <div className="flex gap-4">
+                <span className="text-green-600 font-medium">{bulkResult.inserted ?? 0} inserted</span>
+                <span className="text-yellow-600 font-medium">{bulkResult.skipped ?? 0} skipped (duplicates)</span>
+              </div>
+              {bulkResult.errors?.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-red-600 font-medium mb-1">{bulkResult.errors.length} error(s):</p>
+                  <ul className="text-red-500 text-xs space-y-0.5 max-h-32 overflow-y-auto">
+                    {bulkResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" type="button" onClick={closeBulkModal}>Close</Button>
+            <Button onClick={handleBulkUpload} loading={bulkLoading} disabled={!bulkFile}>Upload</Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

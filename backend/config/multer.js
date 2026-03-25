@@ -28,8 +28,18 @@ const avatarStorage = multer.diskStorage({
   },
 });
 
+const csvFilter = (_req, file, cb) => {
+  if (file.mimetype === 'text/csv' || file.originalname.toLowerCase().endsWith('.csv')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only CSV files are allowed'), false);
+  }
+};
+
 const logoUpload = multer({ storage: logoStorage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 const avatarUpload = multer({ storage: avatarStorage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
+const csvUpload = multer({ storage: multer.memoryStorage(), fileFilter: csvFilter, limits: { fileSize: 2 * 1024 * 1024 } });
 
 module.exports = logoUpload;
 module.exports.avatarUpload = avatarUpload;
+module.exports.csvUpload = csvUpload;

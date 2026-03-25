@@ -2,6 +2,11 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const role = require('../middleware/roleGuard');
 const c = require('../controllers/skillController');
+const { csvUpload } = require('../config/multer');
+
+// Bulk CSV upload (admin only)
+router.post('/bulk-upload/main-skills', auth, role('administrator'), csvUpload.single('file'), c.bulkUploadMainSkills);
+router.post('/bulk-upload/sub-skills', auth, role('administrator'), csvUpload.single('file'), c.bulkUploadSubSkills);
 
 // Catalogue (any authenticated)
 router.get('/catalogue', auth, c.getCatalogue);

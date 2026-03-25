@@ -16,3 +16,5 @@ export const getAllCatalogue = () => api.get('/skills/catalogue/all').then(r => 
 export const createCatalogueSkill = (data) => api.post('/skills/catalogue', data).then(r => r.data);
 export const updateCatalogueSkill = (id, data) => api.patch(`/skills/catalogue/${id}`, data).then(r => r.data);
 export const createCategory = (data) => api.post('/skills/categories', data).then(r => r.data);
+export const bulkUploadMainSkills = (file) => { const fd = new FormData(); fd.append('file', file); return api.post('/skills/bulk-upload/main-skills', fd).then(r => r.data); };
+export const bulkUploadSubSkills = (file) => { const fd = new FormData(); fd.append('file', file); return api.post('/skills/bulk-upload/sub-skills', fd).then(r => r.data); };

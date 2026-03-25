@@ -408,6 +408,175 @@ exports.bulkApproveSkills = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ── BULK CSV UPLOAD ────────────────────────────────────────────────────────
+
+function parseCsv(buffer) {
+  const lines = buffer.toString('utf8').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const rows = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    // Simple CSV parse: handles quoted fields containing commas
+    const fields = [];
+    let cur = '';
+    let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuote = !inQuote;
+      } else if (ch === ',' && !inQuote) {
+        fields.push(cur.trim());
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    fields.push(cur.trim());
+    rows.push(fields);
+  }
+  return rows;
+}
+
+// POST /skills/bulk-upload/main-skills
+// CSV: job_role_name, main_skill_name, description
+exports.bulkUploadMainSkills = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' });
+    const rows = parseCsv(req.file.buffer);
+    if (!rows.length) return res.status(400).json({ error: 'CSV is empty' });
+
+    // Skip header row if present
+    const dataRows = rows[0][0].toLowerCase() === 'job_role_name' ? rows.slice(1) : rows;
+
+    let inserted = 0, skipped = 0;
+    const errors = [];
+
+    for (let i = 0; i < dataRows.length; i++) {
+      const [jobRoleName, mainSkillName, description] = dataRows[i];
+      const rowNum = i + (rows[0][0].toLowerCase() === 'job_role_name' ? 2 : 1);
+
+      if (!jobRoleName || !mainSkillName) {
+        errors.push(`Row ${rowNum}: job_role_name and main_skill_name are required`);
+        continue;
+      }
+
+      // Find job role (case-insensitive)
+      const { rows: roles } = await db.query(
+        'SELECT id FROM job_roles WHERE LOWER(name) = LOWER($1) AND is_active = true',
+        [jobRoleName]
+      );
+      if (!roles.length) {
+        errors.push(`Row ${rowNum}: Job role "${jobRoleName}" not found`);
+        continue;
+      }
+      const jobRoleId = roles[0].id;
+
+      // Check for duplicate main skill under this job role
+      const { rows: existing } = await db.query(
+        'SELECT id FROM main_skills WHERE LOWER(name) = LOWER($1) AND job_role_id = $2',
+        [mainSkillName, jobRoleId]
+      );
+      if (existing.length) {
+        skipped++;
+        continue;
+      }
+
+      await db.query(
+        'INSERT INTO main_skills (job_role_id, name, description) VALUES ($1, $2, $3)',
+        [jobRoleId, mainSkillName, description || null]
+      );
+      inserted++;
+    }
+
+    res.json({ inserted, skipped, errors });
+  } catch (err) { next(err); }
+};
+
+// POST /skills/bulk-upload/sub-skills
+// CSV: job_role_name, main_skill_name, skill_name, category_name, description
+exports.bulkUploadSubSkills = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' });
+    const rows = parseCsv(req.file.buffer);
+    if (!rows.length) return res.status(400).json({ error: 'CSV is empty' });
+
+    const dataRows = rows[0][0].toLowerCase() === 'job_role_name' ? rows.slice(1) : rows;
+
+    let inserted = 0, skipped = 0;
+    const errors = [];
+
+    for (let i = 0; i < dataRows.length; i++) {
+      const [jobRoleName, mainSkillName, skillName, categoryName, description] = dataRows[i];
+      const rowNum = i + (rows[0][0].toLowerCase() === 'job_role_name' ? 2 : 1);
+
+      if (!skillName) {
+        errors.push(`Row ${rowNum}: skill_name is required`);
+        continue;
+      }
+
+      // Resolve optional main skill
+      let mainSkillId = null;
+      if (mainSkillName) {
+        let jobRoleId = null;
+        if (jobRoleName) {
+          const { rows: roles } = await db.query(
+            'SELECT id FROM job_roles WHERE LOWER(name) = LOWER($1)', [jobRoleName]
+          );
+          if (!roles.length) {
+            errors.push(`Row ${rowNum}: Job role "${jobRoleName}" not found`);
+            continue;
+          }
+          jobRoleId = roles[0].id;
+        }
+
+        const msQuery = jobRoleId
+          ? 'SELECT id FROM main_skills WHERE LOWER(name) = LOWER($1) AND job_role_id = $2'
+          : 'SELECT id FROM main_skills WHERE LOWER(name) = LOWER($1) LIMIT 1';
+        const msParams = jobRoleId ? [mainSkillName, jobRoleId] : [mainSkillName];
+        const { rows: ms } = await db.query(msQuery, msParams);
+        if (!ms.length) {
+          errors.push(`Row ${rowNum}: Main skill "${mainSkillName}" not found${jobRoleName ? ` under job role "${jobRoleName}"` : ''}`);
+          continue;
+        }
+        mainSkillId = ms[0].id;
+      }
+
+      // Resolve optional category — create if not found
+      let categoryId = null;
+      if (categoryName) {
+        const { rows: cats } = await db.query(
+          'SELECT id FROM skill_categories WHERE LOWER(name) = LOWER($1)', [categoryName]
+        );
+        if (cats.length) {
+          categoryId = cats[0].id;
+        } else {
+          const { rows: newCat } = await db.query(
+            'INSERT INTO skill_categories (name) VALUES ($1) RETURNING id', [categoryName]
+          );
+          categoryId = newCat[0].id;
+        }
+      }
+
+      // Check for duplicate skill name under same main_skill (or globally if no main skill)
+      const dupQuery = mainSkillId
+        ? 'SELECT id FROM skills_catalogue WHERE LOWER(name) = LOWER($1) AND main_skill_id = $2'
+        : 'SELECT id FROM skills_catalogue WHERE LOWER(name) = LOWER($1) AND main_skill_id IS NULL';
+      const dupParams = mainSkillId ? [skillName, mainSkillId] : [skillName];
+      const { rows: dup } = await db.query(dupQuery, dupParams);
+      if (dup.length) { skipped++; continue; }
+
+      await db.query(
+        'INSERT INTO skills_catalogue (name, description, main_skill_id, category_id) VALUES ($1, $2, $3, $4)',
+        [skillName, description || null, mainSkillId, categoryId]
+      );
+      inserted++;
+    }
+
+    res.json({ inserted, skipped, errors });
+  } catch (err) { next(err); }
+};
+
 exports.getAllSkills = async (_req, res, next) => {
   try {
     const { rows } = await db.query(
