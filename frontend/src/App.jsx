@@ -6,6 +6,7 @@ import Navbar from './components/layout/Navbar';
 import Sidebar from './components/layout/Sidebar';
 
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 
 // Employee
 import EmployeeDashboard from './pages/employee/Dashboard';
@@ -64,6 +65,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={<RootRedirect />} />
 
       {/* Shared dashboard (employee + manager) */}

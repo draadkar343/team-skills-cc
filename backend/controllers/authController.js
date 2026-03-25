@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const db = require('../config/db');
 const { hashPassword, comparePassword, signToken } = require('../services/authService');
 const email = require('../services/emailService');
@@ -89,6 +90,66 @@ exports.uploadAvatar = async (req, res, next) => {
     const avatarUrl = `/uploads/${req.file.filename}`;
     await db.query('UPDATE users SET avatar_url = $1, updated_at = NOW() WHERE id = $2', [avatarUrl, req.user.id]);
     res.json({ avatarUrl });
+  } catch (err) { next(err); }
+};
+
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email: userEmail } = req.body;
+    if (!userEmail) return res.status(400).json({ error: 'Email required' });
+
+    // Always respond with success to prevent user enumeration
+    const { rows } = await db.query(
+      'SELECT id, first_name FROM users WHERE email = $1 AND is_active = true',
+      [userEmail.toLowerCase()]
+    );
+
+    if (rows.length) {
+      const user = rows[0];
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      // Invalidate any existing unused tokens for this user
+      await db.query(
+        'UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL',
+        [user.id]
+      );
+
+      await db.query(
+        'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+        [user.id, token, expiresAt]
+      );
+
+      const appUrl = process.env.APP_URL || 'http://localhost:3000';
+      const resetUrl = `${appUrl}/reset-password?token=${token}`;
+      email.sendPasswordReset(userEmail.toLowerCase(), user.first_name, resetUrl);
+    }
+
+    res.json({ message: 'If that email exists, a reset link has been sent.' });
+  } catch (err) { next(err); }
+};
+
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ error: 'Token and new password required' });
+    if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    const { rows } = await db.query(
+      `SELECT prt.id, prt.user_id FROM password_reset_tokens prt
+       WHERE prt.token = $1 AND prt.used_at IS NULL AND prt.expires_at > NOW()`,
+      [token]
+    );
+
+    if (!rows.length) return res.status(400).json({ error: 'Invalid or expired reset link.' });
+
+    const { id: tokenId, user_id: userId } = rows[0];
+    const newHash = await hashPassword(newPassword);
+
+    await db.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, userId]);
+    await db.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1', [tokenId]);
+
+    res.json({ message: 'Password has been reset. You can now log in.' });
   } catch (err) { next(err); }
 };
 

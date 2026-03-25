@@ -13,8 +13,21 @@ const adminRoutes = require('./routes/adminRoutes');
 const jobRoleRoutes = require('./routes/jobRoleRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const errorHandler = require('./middleware/errorHandler');
+const db = require('./config/db');
 
 const app = express();
+
+// Create password_reset_tokens table if it doesn't exist (safe to run on every start)
+db.query(`
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id         SERIAL PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token      VARCHAR(128) NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at    TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create password_reset_tokens table:', err.message));
 
 app.use(helmet());
 app.use(cors());

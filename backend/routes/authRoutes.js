@@ -4,6 +4,8 @@ const { avatarUpload } = require('../config/multer');
 const c = require('../controllers/authController');
 
 router.post('/login', c.login);
+router.post('/forgot-password', c.forgotPassword);
+router.post('/reset-password', c.resetPassword);
 router.get('/me', auth, c.getMe);
 router.patch('/me/profile', auth, c.updateProfile);
 router.patch('/me/avatar', auth, avatarUpload.single('avatar'), c.uploadAvatar);

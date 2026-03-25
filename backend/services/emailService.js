@@ -155,6 +155,24 @@ exports.sendTimesheetRejected = (employeeEmail, employeeName, weekStart, manager
   );
 
 /**
+ * Send a password reset link to the user.
+ */
+exports.sendPasswordReset = (to, firstName, resetUrl) =>
+  sendMail(
+    to,
+    'Reset your password',
+    layout(
+      'Password Reset Request',
+      `<p>Hi ${firstName},</p>
+       <p>We received a request to reset your password. Click the button below to choose a new one.</p>
+       <p style="margin:24px 0">
+         <a href="${resetUrl}" style="background:#1d4ed8;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:500">Reset Password</a>
+       </p>
+       <p style="color:#6b7280;font-size:13px">This link expires in 1 hour. If you did not request a password reset, you can safely ignore this email.</p>`
+    )
+  );
+
+/**
  * Notify a user that their email address was changed.
  */
 exports.sendEmailChanged = (newEmail, firstName, oldEmail) =>
