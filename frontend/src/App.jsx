@@ -5,6 +5,7 @@ import ProtectedRoute from './components/layout/ProtectedRoute';
 import Navbar from './components/layout/Navbar';
 import Sidebar from './components/layout/Sidebar';
 
+import ChatBot from './chatbot/ChatBot';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 
@@ -49,6 +50,7 @@ function AppLayout({ children }) {
         <Sidebar />
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
+      <ChatBot />
     </div>
   );
 }
