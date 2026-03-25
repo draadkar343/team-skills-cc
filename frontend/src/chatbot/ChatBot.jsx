@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { findAnswer, getGreeting } from './knowledge';
+import api from '../api/axiosInstance';
 
 function renderText(text) {
   // Render **bold** and \n line breaks
@@ -23,6 +24,8 @@ export default function ChatBot() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState([]);
+  const [llmMode, setLlmMode] = useState(false);
+  const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -38,35 +41,63 @@ export default function ChatBot() {
   // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, loading]);
 
   // Focus input when opened
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100);
   }, [open]);
 
-  const sendMessage = (text) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
+  // When switching modes, add a transition message
+  const toggleMode = () => {
+    const next = !llmMode;
+    setLlmMode(next);
+    setSuggestions([]);
+    const note = next
+      ? 'Switched to **AI Assistant** mode. I can now answer more detailed questions about the app.'
+      : 'Switched to **Quick Help** mode. Ask me about any feature to get a fast answer.';
+    setMessages(prev => [...prev, { from: 'bot', text: note }]);
+    if (!next) setSuggestions(getGreeting(role).suggestions);
+  };
 
-    setMessages(prev => [...prev, { from: 'user', text: trimmed }]);
+  const sendMessage = async (text) => {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+
+    const userMsg = { from: 'user', text: trimmed };
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setSuggestions([]);
 
-    const answer = findAnswer(trimmed, role);
-    if (answer) {
-      setTimeout(() => {
-        setMessages(prev => [...prev, { from: 'bot', text: answer.response }]);
-        setSuggestions(answer.suggestions || []);
-      }, 300);
+    if (llmMode) {
+      setLoading(true);
+      try {
+        // Build history from current messages (exclude the one we just added)
+        const history = messages.map(m => ({ from: m.from, text: m.text }));
+        const { data } = await api.post('/chat', { message: trimmed, history, role });
+        setMessages(prev => [...prev, { from: 'bot', text: data.reply }]);
+      } catch (err) {
+        const msg = err.response?.data?.error || 'Sorry, I couldn\'t reach the AI assistant. Try Quick Help mode instead.';
+        setMessages(prev => [...prev, { from: 'bot', text: msg }]);
+      } finally {
+        setLoading(false);
+      }
     } else {
-      setTimeout(() => {
-        setMessages(prev => [...prev, {
-          from: 'bot',
-          text: "I'm not sure about that. Try asking about skills, timesheets, certifications, your profile, or use the sidebar to navigate.",
-        }]);
-        setSuggestions(getGreeting(role).suggestions);
-      }, 300);
+      const answer = findAnswer(trimmed, role);
+      if (answer) {
+        setTimeout(() => {
+          setMessages(prev => [...prev, { from: 'bot', text: answer.response }]);
+          setSuggestions(answer.suggestions || []);
+        }, 300);
+      } else {
+        setTimeout(() => {
+          setMessages(prev => [...prev, {
+            from: 'bot',
+            text: "I'm not sure about that. Try asking about skills, timesheets, certifications, your profile, or switch to **AI Assistant** mode for more help.",
+          }]);
+          setSuggestions(getGreeting(role).suggestions);
+        }, 300);
+      }
     }
   };
 
@@ -91,7 +122,21 @@ export default function ChatBot() {
                 <p className="text-xs text-blue-200 capitalize">{role} guide</p>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} className="text-blue-200 hover:text-white text-lg leading-none">✕</button>
+            <div className="flex items-center gap-2">
+              {/* Mode toggle */}
+              <button
+                onClick={toggleMode}
+                title={llmMode ? 'Switch to Quick Help' : 'Switch to AI Assistant'}
+                className={`text-xs px-2 py-1 rounded-full border transition-colors ${
+                  llmMode
+                    ? 'bg-white text-blue-600 border-white'
+                    : 'bg-blue-500 text-blue-100 border-blue-400 hover:bg-blue-400'
+                }`}
+              >
+                {llmMode ? '🤖 AI' : '⚡ Quick'}
+              </button>
+              <button onClick={() => setOpen(false)} className="text-blue-200 hover:text-white text-lg leading-none">✕</button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -108,8 +153,21 @@ export default function ChatBot() {
               </div>
             ))}
 
+            {/* Typing indicator */}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-2xl rounded-bl-sm">
+                  <span className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Suggestions */}
-            {suggestions.length > 0 && (
+            {!loading && suggestions.length > 0 && (
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {suggestions.map((s, i) => (
                   <button key={i} onClick={() => sendMessage(s)}
@@ -130,10 +188,11 @@ export default function ChatBot() {
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Ask me anything…"
-              className="flex-1 text-sm px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder={llmMode ? 'Ask the AI assistant…' : 'Ask me anything…'}
+              disabled={loading}
+              className="flex-1 text-sm px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60"
             />
-            <button type="submit" disabled={!input.trim()}
+            <button type="submit" disabled={!input.trim() || loading}
               className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors">
               Send
             </button>

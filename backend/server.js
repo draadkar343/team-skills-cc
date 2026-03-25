@@ -16,6 +16,7 @@ const newsRoutes = require('./routes/newsRoutes');
 const certsRoutes = require('./routes/certsRoutes');
 const integrationsRoutes = require('./routes/integrationsRoutes');
 const publicApiRoutes = require('./routes/publicApiRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 const { scheduleBirthdayJob } = require('./services/birthdayJob');
@@ -174,6 +175,7 @@ app.use('/api/v1/news', newsRoutes);
 app.use('/api/v1/certs', certsRoutes);
 app.use('/api/v1/integrations', integrationsRoutes);
 app.use('/api/v1/public', publicApiRoutes);
+app.use('/api/v1/chat', chatRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 
