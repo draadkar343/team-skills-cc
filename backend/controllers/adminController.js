@@ -26,6 +26,18 @@ exports.updateConfig = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// Public (no auth) — returns only safe display config for the login page
+exports.getPublicConfig = async (_req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      "SELECT key, value FROM system_config WHERE key IN ('company_name','company_logo','login_bg')"
+    );
+    const config = {};
+    rows.forEach(r => { config[r.key] = r.value; });
+    res.json(config);
+  } catch (err) { next(err); }
+};
+
 exports.uploadLogo = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -43,6 +55,45 @@ exports.uploadLogo = async (req, res, next) => {
       [logoPath, req.user.id]
     );
     res.json({ logoUrl: logoPath });
+  } catch (err) { next(err); }
+};
+
+exports.uploadLoginBg = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    // Remove old background file if present
+    const { rows } = await db.query("SELECT value FROM system_config WHERE key = 'login_bg'");
+    if (rows.length && rows[0].value) {
+      const oldPath = path.join(process.env.UPLOAD_DIR || path.join(__dirname, '../uploads'), path.basename(rows[0].value));
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+
+    const bgPath = `/uploads/${req.file.filename}`;
+    await db.query(
+      `INSERT INTO system_config (key, value, updated_by, updated_at)
+       VALUES ('login_bg', $1, $2, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_by = $2, updated_at = NOW()`,
+      [bgPath, req.user.id]
+    );
+    res.json({ bgUrl: bgPath });
+  } catch (err) { next(err); }
+};
+
+exports.removeLoginBg = async (req, res, next) => {
+  try {
+    const { rows } = await db.query("SELECT value FROM system_config WHERE key = 'login_bg'");
+    if (rows.length && rows[0].value) {
+      const oldPath = path.join(process.env.UPLOAD_DIR || path.join(__dirname, '../uploads'), path.basename(rows[0].value));
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+    await db.query(
+      `INSERT INTO system_config (key, value, updated_by, updated_at)
+       VALUES ('login_bg', NULL, $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = NULL, updated_by = $1, updated_at = NOW()`,
+      [req.user.id]
+    );
+    res.json({ message: 'Login background removed' });
   } catch (err) { next(err); }
 };
 

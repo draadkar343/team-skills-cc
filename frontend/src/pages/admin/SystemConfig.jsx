@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getConfig, updateConfig, uploadLogo } from '../../api/adminApi';
+import { getConfig, updateConfig, uploadLogo, uploadLoginBg, removeLoginBg } from '../../api/adminApi';
 import Button from '../../components/common/Button';
 
 export default function SystemConfig() {
@@ -7,8 +7,12 @@ export default function SystemConfig() {
   const [values, setValues] = useState({});
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
+  const [bgFile, setBgFile] = useState(null);
+  const [bgPreview, setBgPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingBg, setUploadingBg] = useState(false);
+  const [removingBg, setRemovingBg] = useState(false);
   const [templateSaving, setTemplateSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -58,6 +62,43 @@ export default function SystemConfig() {
     } finally { setUploading(false); }
   };
 
+  const handleBgChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setBgFile(file);
+    setBgPreview(URL.createObjectURL(file));
+  };
+
+  const handleBgUpload = async () => {
+    if (!bgFile) return;
+    setUploadingBg(true);
+    setMsg('');
+    try {
+      const { bgUrl } = await uploadLoginBg(bgFile);
+      setValues(v => ({ ...v, login_bg: bgUrl }));
+      setMsg('Login background uploaded successfully.');
+      setBgFile(null);
+      setBgPreview(null);
+    } catch {
+      setMsg('Failed to upload background.');
+    } finally { setUploadingBg(false); }
+  };
+
+  const handleRemoveBg = async () => {
+    if (!window.confirm('Remove the login background image?')) return;
+    setRemovingBg(true);
+    setMsg('');
+    try {
+      await removeLoginBg();
+      setValues(v => ({ ...v, login_bg: '' }));
+      setBgPreview(null);
+      setBgFile(null);
+      setMsg('Login background removed.');
+    } catch {
+      setMsg('Failed to remove background.');
+    } finally { setRemovingBg(false); }
+  };
+
   const handleSaveTemplate = async () => {
     setTemplateSaving(true);
     setMsg('');
@@ -100,6 +141,33 @@ export default function SystemConfig() {
         {logoFile && (
           <Button onClick={handleLogoUpload} loading={uploading}>Upload Logo</Button>
         )}
+      </div>
+
+      {/* Login Background */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+        <h2 className="font-semibold mb-1">Login Page Background</h2>
+        <p className="text-xs text-gray-400 mb-4">Image displayed behind the login card. Recommended: 1920×1080 or larger.</p>
+        <div className="flex items-start gap-4 mb-4">
+          {(bgPreview || values.login_bg) && (
+            <img
+              src={bgPreview || values.login_bg}
+              alt="Login background preview"
+              className="h-24 w-40 border border-gray-200 rounded-lg object-cover"
+            />
+          )}
+          <div>
+            <input type="file" accept="image/*" onChange={handleBgChange} className="text-sm" />
+            <p className="text-xs text-gray-400 mt-1">PNG, JPG or WebP, max 5MB</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {bgFile && (
+            <Button onClick={handleBgUpload} loading={uploadingBg}>Upload Background</Button>
+          )}
+          {values.login_bg && !bgFile && (
+            <Button variant="danger" onClick={handleRemoveBg} loading={removingBg}>Remove Background</Button>
+          )}
+        </div>
       </div>
 
       {/* Other config */}

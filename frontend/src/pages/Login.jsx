@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { forgotPassword } from '../api/authApi';
+import { getPublicConfig } from '../api/adminApi';
 
 export default function Login() {
   const { login } = useAuth();
@@ -11,6 +12,12 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [loginBg, setLoginBg] = useState(null);
+
+  useEffect(() => {
+    getPublicConfig().then(cfg => { if (cfg.login_bg) setLoginBg(cfg.login_bg); }).catch(() => {});
+  }, []);
 
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
@@ -46,10 +53,14 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800">
+    <div
+      className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800"
+      style={loginBg ? { backgroundImage: `url(${loginBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
+    >
+      {loginBg && <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />}
       <button
         onClick={toggle}
-        className="fixed top-4 right-4 p-2 rounded-lg bg-white dark:bg-gray-700 shadow text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+        className="fixed top-4 right-4 z-10 p-2 rounded-lg bg-white dark:bg-gray-700 shadow text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
         title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
       >
         {theme === 'dark' ? (
@@ -64,7 +75,7 @@ export default function Login() {
           </svg>
         )}
       </button>
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 w-full max-w-sm">
+      <div className="relative z-10 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm">
         <h1 className="text-2xl font-bold text-blue-700 dark:text-blue-400 mb-2 text-center">Skills Management</h1>
 
         {!showForgot ? (
