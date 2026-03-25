@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getPendingSkills } from '../../api/skillsApi';
 import { getPendingTimesheets } from '../../api/timesheetApi';
 import { getMySquad } from '../../api/squadApi';
+import NewsFeed from '../../components/common/NewsFeed';
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
@@ -35,6 +36,10 @@ export default function ManagerDashboard() {
           <div className="text-4xl font-bold text-green-600">{squad?.members?.length || 0}</div>
           <div className="text-sm text-gray-500 mt-1">Team Members</div>
         </Link>
+      </div>
+
+      <div className="mb-6">
+        <NewsFeed />
       </div>
 
       {squad && (

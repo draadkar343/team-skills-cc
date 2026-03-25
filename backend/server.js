@@ -12,10 +12,25 @@ const squadRoutes = require('./routes/squadRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const jobRoleRoutes = require('./routes/jobRoleRoutes');
 const auditRoutes = require('./routes/auditRoutes');
+const newsRoutes = require('./routes/newsRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 
 const app = express();
+
+// Create news_items table if it doesn't exist
+db.query(`
+  CREATE TABLE IF NOT EXISTS news_items (
+    id          SERIAL PRIMARY KEY,
+    title       VARCHAR(255) NOT NULL,
+    body        TEXT NOT NULL,
+    job_role_id INTEGER REFERENCES job_roles(id) ON DELETE SET NULL,
+    created_by  INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create news_items table:', err.message));
 
 // Create password_reset_tokens table if it doesn't exist (safe to run on every start)
 db.query(`
@@ -42,6 +57,7 @@ app.use('/api/v1/squads', squadRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/job-roles', jobRoleRoutes);
 app.use('/api/v1/audit', auditRoutes);
+app.use('/api/v1/news', newsRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 

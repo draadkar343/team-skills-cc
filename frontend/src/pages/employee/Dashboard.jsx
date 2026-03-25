@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getMySkills } from '../../api/skillsApi';
 import { getMyTimesheets } from '../../api/timesheetApi';
 import Badge from '../../components/common/Badge';
+import NewsFeed from '../../components/common/NewsFeed';
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
@@ -38,6 +39,10 @@ export default function EmployeeDashboard() {
             <div className="text-xs text-gray-500 mt-1">{label}</div>
           </div>
         ))}
+      </div>
+
+      <div className="mb-6">
+        <NewsFeed />
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">

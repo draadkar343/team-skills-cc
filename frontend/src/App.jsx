@@ -34,6 +34,7 @@ import UserManagement from './pages/admin/UserManagement';
 import AllSkillsView from './pages/admin/AllSkillsView';
 import AllTimesheets from './pages/admin/AllTimesheets';
 import SystemConfig from './pages/admin/SystemConfig';
+import NewsManagement from './pages/admin/NewsManagement';
 
 function AppLayout({ children }) {
   return (
@@ -160,6 +161,11 @@ export default function App() {
       <Route path="/admin/audit" element={
         <ProtectedRoute allowedRoles={['administrator']}>
           <AppLayout><AuditLog /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/news" element={
+        <ProtectedRoute allowedRoles={['administrator']}>
+          <AppLayout><NewsManagement /></AppLayout>
         </ProtectedRoute>
       } />
 

@@ -37,6 +37,7 @@ export default function Sidebar() {
           <NavLink to="/admin/skills" className={linkClass}>Skills Catalogue</NavLink>
           <NavLink to="/admin/all-skills" className={linkClass}>All Employee Skills</NavLink>
           <NavLink to="/admin/all-timesheets" className={linkClass}>All Timesheets</NavLink>
+          <NavLink to="/admin/news" className={linkClass}>News</NavLink>
           <NavLink to="/admin/config" className={linkClass}>System Config</NavLink>
           <NavLink to="/admin/audit" className={linkClass}>Audit Log</NavLink>
         </>
