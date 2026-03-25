@@ -114,6 +114,26 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create news_items table:', err.message));
 
+// Create error_log table if it doesn't exist
+db.query(`
+  CREATE TABLE IF NOT EXISTS error_log (
+    id          BIGSERIAL PRIMARY KEY,
+    level       VARCHAR(20)  NOT NULL DEFAULT 'error',
+    message     TEXT         NOT NULL,
+    stack       TEXT,
+    method      VARCHAR(10),
+    path        VARCHAR(500),
+    user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    status_code INTEGER,
+    context     JSONB,
+    logged_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create error_log:', err.message));
+
+db.query(`
+  CREATE INDEX IF NOT EXISTS idx_error_log_logged ON error_log(logged_at DESC)
+`).catch(() => {});
+
 // Create audit_retention_policies table if it doesn't exist
 db.query(`
   CREATE TABLE IF NOT EXISTS audit_retention_policies (

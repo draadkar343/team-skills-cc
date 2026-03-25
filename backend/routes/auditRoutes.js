@@ -8,5 +8,7 @@ router.get('/tables', auth, role('administrator'), c.getTables);
 router.get('/retention', auth, role('administrator'), c.getRetentionPolicies);
 router.put('/retention', auth, role('administrator'), c.saveRetentionPolicies);
 router.post('/purge', auth, role('administrator'), c.purgeByRetention);
+router.get('/errors', auth, role('administrator'), c.getErrorLog);
+router.delete('/errors', auth, role('administrator'), c.clearErrorLog);
 
 module.exports = router;

@@ -14,3 +14,9 @@ export const saveRetentionPolicies = (policies) =>
 
 export const purgeByRetention = () =>
   api.post('/audit/purge').then(r => r.data);
+
+export const getErrorLog = (params) =>
+  api.get('/audit/errors', { params }).then(r => r.data);
+
+export const clearErrorLog = (olderThanDays) =>
+  api.delete('/audit/errors', { data: olderThanDays != null ? { olderThanDays } : {} }).then(r => r.data);
