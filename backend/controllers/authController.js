@@ -30,7 +30,7 @@ exports.getMe = async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.avatar_url, u.biography,
-              u.job_role_id, jr.name AS job_role_name
+              u.date_of_birth, u.job_role_id, jr.name AS job_role_name
        FROM users u
        LEFT JOIN job_roles jr ON jr.id = u.job_role_id
        WHERE u.id = $1`,
@@ -40,6 +40,7 @@ exports.getMe = async (req, res, next) => {
     res.json({
       id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name,
       role: u.role, avatarUrl: u.avatar_url, biography: u.biography,
+      dateOfBirth: u.date_of_birth,
       jobRoleId: u.job_role_id, jobRoleName: u.job_role_name,
     });
   } catch (err) { next(err); }
@@ -47,7 +48,7 @@ exports.getMe = async (req, res, next) => {
 
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { firstName, lastName, newEmail, biography, jobRoleId } = req.body;
+    const { firstName, lastName, newEmail, biography, dateOfBirth, jobRoleId } = req.body;
 
     // Check for email conflict before updating
     if (newEmail) {
@@ -63,15 +64,17 @@ exports.updateProfile = async (req, res, next) => {
 
     const { rows } = await db.query(
       `UPDATE users SET
-        first_name  = COALESCE($1, first_name),
-        last_name   = COALESCE($2, last_name),
-        email       = COALESCE($3, email),
-        biography   = COALESCE($4, biography),
-        job_role_id = CASE WHEN $5::boolean THEN $6::integer ELSE job_role_id END,
-        updated_at  = NOW()
-       WHERE id = $7 RETURNING id, email, first_name, last_name, role, biography, job_role_id`,
+        first_name    = COALESCE($1, first_name),
+        last_name     = COALESCE($2, last_name),
+        email         = COALESCE($3, email),
+        biography     = COALESCE($4, biography),
+        date_of_birth = CASE WHEN $5::boolean THEN $6::date ELSE date_of_birth END,
+        job_role_id   = CASE WHEN $7::boolean THEN $8::integer ELSE job_role_id END,
+        updated_at    = NOW()
+       WHERE id = $9 RETURNING id, email, first_name, last_name, role, biography, date_of_birth, job_role_id`,
       [firstName || null, lastName || null, newEmail ? newEmail.toLowerCase() : null,
-       biography ?? null, jobRoleId !== undefined, jobRoleId ?? null, req.user.id]
+       biography ?? null, dateOfBirth !== undefined, dateOfBirth || null,
+       jobRoleId !== undefined, jobRoleId ?? null, req.user.id]
     );
     const u = rows[0];
 
@@ -80,7 +83,7 @@ exports.updateProfile = async (req, res, next) => {
       email.sendEmailChanged(u.email, u.first_name, oldEmail);
     }
 
-    res.json({ id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, role: u.role, biography: u.biography, jobRoleId: u.job_role_id });
+    res.json({ id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, role: u.role, biography: u.biography, dateOfBirth: u.date_of_birth, jobRoleId: u.job_role_id });
   } catch (err) { next(err); }
 };
 

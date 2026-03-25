@@ -218,6 +218,35 @@ exports.sendPasswordReset = (to, firstName, resetUrl) =>
   );
 
 /**
+ * Birthday wish sent directly to the employee on their birthday.
+ */
+exports.sendBirthdayWish = (to, firstName) =>
+  sendMail(
+    to,
+    `Happy Birthday, ${firstName}! 🎂`,
+    layout(
+      `Happy Birthday, ${firstName}!`,
+      `<p>Wishing you a wonderful birthday from everyone at the team.</p>
+       <p>We hope you have a fantastic day!</p>`
+    )
+  );
+
+/**
+ * Birthday reminder sent to the squad manager about a team member's birthday.
+ */
+exports.sendBirthdayReminder = (managerEmail, managerName, employeeName) =>
+  sendMail(
+    managerEmail,
+    `Birthday reminder: ${employeeName} 🎂`,
+    layout(
+      "Team Birthday Reminder",
+      `<p>Hi ${managerName},</p>
+       <p>Just a heads-up — today is <strong>${employeeName}</strong>'s birthday!</p>
+       <p>Why not take a moment to wish them a great day?</p>`
+    )
+  );
+
+/**
  * Notify a user that their email address was changed.
  */
 exports.sendEmailChanged = (newEmail, firstName, oldEmail) =>

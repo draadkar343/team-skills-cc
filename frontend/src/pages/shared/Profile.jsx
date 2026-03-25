@@ -8,7 +8,7 @@ export default function Profile() {
   const { user: authUser, updateUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [jobRoles, setJobRoles] = useState([]);
-  const [form, setForm] = useState({ firstName: '', lastName: '', newEmail: '', jobRoleId: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', newEmail: '', dateOfBirth: '', jobRoleId: '' });
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirm: '' });
   const [profileMsg, setProfileMsg] = useState(null);
   const [pwMsg, setPwMsg] = useState(null);
@@ -22,7 +22,7 @@ export default function Profile() {
     Promise.all([getMe(), getJobRoles()]).then(([u, roles]) => {
       setProfile(u);
       setJobRoles(roles);
-      setForm({ firstName: u.firstName, lastName: u.lastName, newEmail: u.email, jobRoleId: u.jobRoleId ?? '' });
+      setForm({ firstName: u.firstName, lastName: u.lastName, newEmail: u.email, dateOfBirth: u.dateOfBirth ? u.dateOfBirth.split('T')[0] : '', jobRoleId: u.jobRoleId ?? '' });
     });
   }, []);
 
@@ -31,6 +31,7 @@ export default function Profile() {
     (form.firstName !== profile.firstName ||
       form.lastName !== profile.lastName ||
       form.newEmail !== profile.email ||
+      form.dateOfBirth !== (profile.dateOfBirth ? profile.dateOfBirth.split('T')[0] : '') ||
       (form.jobRoleId || '') !== (profile.jobRoleId ?? '').toString());
 
   const handleSaveProfile = async (e) => {
@@ -42,6 +43,7 @@ export default function Profile() {
         firstName: form.firstName,
         lastName: form.lastName,
         newEmail: form.newEmail !== profile.email ? form.newEmail : undefined,
+        dateOfBirth: form.dateOfBirth || null,
         jobRoleId: form.jobRoleId !== '' ? parseInt(form.jobRoleId) : null,
       });
       setProfile(p => ({ ...p, ...updated }));
@@ -192,6 +194,16 @@ export default function Profile() {
             onChange={e => setForm(f => ({ ...f, newEmail: e.target.value }))}
           />
           <p className="text-xs text-gray-400 mt-1">This is your login email. You will receive a confirmation if it changes.</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Date of Birth</label>
+          <input
+            type="date"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            value={form.dateOfBirth}
+            onChange={e => setForm(f => ({ ...f, dateOfBirth: e.target.value }))}
+          />
         </div>
 
         <div>

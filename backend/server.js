@@ -18,6 +18,7 @@ const integrationsRoutes = require('./routes/integrationsRoutes');
 const publicApiRoutes = require('./routes/publicApiRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
+const { scheduleBirthdayJob } = require('./services/birthdayJob');
 
 const app = express();
 
@@ -179,4 +180,7 @@ app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`API running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`API running on port ${PORT}`);
+  scheduleBirthdayJob();
+});

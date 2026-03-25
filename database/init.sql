@@ -19,6 +19,7 @@ CREATE TABLE users (
     is_active     BOOLEAN NOT NULL DEFAULT TRUE,
     avatar_url    VARCHAR(500),
     biography     TEXT,
+    date_of_birth DATE,
     job_role_id   INTEGER,                          -- FK added after job_roles table created
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -303,3 +304,146 @@ INSERT INTO skills_catalogue (category_id, name, description) VALUES
     (5, 'Git', 'Version control with Git'),
     (5, 'AWS', 'Amazon Web Services cloud platform'),
     (5, 'Linux', 'Linux system administration');
+
+-- ============================================================
+-- PASSWORD RESET TOKENS
+-- ============================================================
+
+CREATE TABLE password_reset_tokens (
+    id          SERIAL PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token       VARCHAR(255) NOT NULL,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used_at     TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- EMPLOYEE CERTIFICATIONS
+-- ============================================================
+
+CREATE TABLE employee_certifications (
+    id               SERIAL PRIMARY KEY,
+    user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name             VARCHAR(150) NOT NULL,
+    provider         VARCHAR(150),
+    date_obtained    DATE NOT NULL,
+    expiration_date  DATE,
+    certificate_url  VARCHAR(500),
+    notes            TEXT,
+    status           workflow_status NOT NULL DEFAULT 'draft',
+    submitted_at     TIMESTAMPTZ,
+    reviewed_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at      TIMESTAMPTZ,
+    rejection_reason TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- NEWS ITEMS
+-- ============================================================
+
+CREATE TABLE news_items (
+    id          SERIAL PRIMARY KEY,
+    title       VARCHAR(255) NOT NULL,
+    body        TEXT NOT NULL,
+    job_role_id INTEGER REFERENCES job_roles(id) ON DELETE SET NULL,
+    created_by  INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- AUDIT RETENTION POLICIES
+-- ============================================================
+
+CREATE TABLE audit_retention_policies (
+    table_name      VARCHAR(100) PRIMARY KEY,
+    retention_days  INTEGER NOT NULL,
+    updated_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- ERROR LOG
+-- ============================================================
+
+CREATE TABLE error_log (
+    id          BIGSERIAL PRIMARY KEY,
+    level       VARCHAR(20) NOT NULL DEFAULT 'error',
+    message     TEXT NOT NULL,
+    stack       TEXT,
+    method      VARCHAR(10),
+    path        VARCHAR(500),
+    user_id     INTEGER,
+    status_code INTEGER,
+    context     JSONB,
+    logged_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_error_log_logged ON error_log(logged_at DESC);
+
+-- ============================================================
+-- WEBHOOKS
+-- ============================================================
+
+CREATE TABLE webhooks (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(150) NOT NULL,
+    url         VARCHAR(500) NOT NULL,
+    secret      VARCHAR(255),
+    events      TEXT[] NOT NULL DEFAULT '{}',
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by  INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE webhook_deliveries (
+    id            SERIAL PRIMARY KEY,
+    webhook_id    INTEGER NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+    event         VARCHAR(100) NOT NULL,
+    payload       JSONB NOT NULL,
+    response_code INTEGER,
+    response_body TEXT,
+    success       BOOLEAN NOT NULL DEFAULT FALSE,
+    delivered_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id);
+
+-- ============================================================
+-- API KEYS
+-- ============================================================
+
+CREATE TABLE api_keys (
+    id           SERIAL PRIMARY KEY,
+    name         VARCHAR(150) NOT NULL,
+    description  TEXT,
+    key_hash     VARCHAR(255) NOT NULL,
+    key_prefix   VARCHAR(20) NOT NULL,
+    scopes       TEXT[] NOT NULL DEFAULT '{}',
+    created_by   INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    last_used_at TIMESTAMPTZ,
+    is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- EXTERNAL INTEGRATIONS
+-- ============================================================
+
+CREATE TABLE external_integrations (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(150) NOT NULL,
+    description TEXT,
+    base_url    VARCHAR(500) NOT NULL,
+    auth_type   VARCHAR(50) NOT NULL DEFAULT 'none',
+    auth_config JSONB NOT NULL DEFAULT '{}',
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by  INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

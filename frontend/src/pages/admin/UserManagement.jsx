@@ -23,7 +23,7 @@ export default function UserManagement() {
   const openCreate = () => { setForm(emptyForm); setError(''); setModal('create'); };
   const openEdit = (u) => {
     setTarget(u);
-    setForm({ firstName: u.firstName, lastName: u.lastName, role: u.role, isActive: u.isActive, jobRoleId: u.jobRoleId ?? '' });
+    setForm({ firstName: u.firstName, lastName: u.lastName, role: u.role, isActive: u.isActive, dateOfBirth: u.dateOfBirth ? u.dateOfBirth.split('T')[0] : '', jobRoleId: u.jobRoleId ?? '' });
     setError('');
     setModal('edit');
   };
@@ -46,7 +46,7 @@ export default function UserManagement() {
     e.preventDefault();
     setLoading(true);
     try {
-      await updateUser(target.id, { ...form, jobRoleId: form.jobRoleId !== '' ? parseInt(form.jobRoleId) : null });
+      await updateUser(target.id, { ...form, dateOfBirth: form.dateOfBirth || null, jobRoleId: form.jobRoleId !== '' ? parseInt(form.jobRoleId) : null });
       setModal(null);
       await load();
     } catch (err) {
@@ -165,6 +165,12 @@ export default function UserManagement() {
               <option value="">None</option>
               {jobRoles.filter(r => r.is_active).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Date of Birth</label>
+            <input type="date"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={form.dateOfBirth || ''} onChange={e => setForm(x => ({ ...x, dateOfBirth: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Role</label>
