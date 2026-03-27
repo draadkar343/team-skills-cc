@@ -21,6 +21,7 @@ export default function Sidebar() {
           <NavLink to="/my-certifications" className={linkClass}>My Certifications</NavLink>
           <NavLink to="/timesheets" className={linkClass}>Timesheets</NavLink>
           <NavLink to="/biography" className={linkClass}>My Biography</NavLink>
+          <NavLink to="/kudos" className={linkClass}>Recognition</NavLink>
         </>
       )}
       {user?.role === 'manager' && (
@@ -34,6 +35,7 @@ export default function Sidebar() {
           <NavLink to="/client-planning" className={linkClass}>Client Planning</NavLink>
           <NavLink to="/skills-heatmap" className={linkClass}>Skills Heatmap</NavLink>
           <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
+          <NavLink to="/kudos" className={linkClass}>Recognition</NavLink>
         </>
       )}
       {user?.role === 'resourcing' && (
@@ -42,6 +44,7 @@ export default function Sidebar() {
           <NavLink to="/talent-pipeline" className={linkClass}>Talent Pipeline</NavLink>
           <NavLink to="/skills-heatmap" className={linkClass}>Skills Heatmap</NavLink>
           <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
+          <NavLink to="/kudos" className={linkClass}>Recognition</NavLink>
         </>
       )}
       {user?.role === 'administrator' && (
@@ -59,6 +62,7 @@ export default function Sidebar() {
           <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
           <NavLink to="/resourcing" className={linkClass}>Resourcing Overview</NavLink>
           <NavLink to="/talent-pipeline" className={linkClass}>Talent Pipeline</NavLink>
+          <NavLink to="/kudos" className={linkClass}>Recognition</NavLink>
           <NavLink to="/admin/integrations" className={linkClass}>Integrations</NavLink>
           <NavLink to="/admin/news" className={linkClass}>News</NavLink>
           <NavLink to="/admin/config" className={linkClass}>System Config</NavLink>

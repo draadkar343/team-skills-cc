@@ -33,6 +33,9 @@ import AuditLog from './pages/admin/AuditLog';
 import ResourcingView from './pages/resourcing/ResourcingView';
 import TalentPipeline from './pages/resourcing/TalentPipeline';
 
+// Shared — all roles
+import KudosWall from './pages/shared/KudosWall';
+
 // Manager extra
 import MainSkillsView from './pages/manager/MainSkillsView';
 import SkillsHeatmap from './pages/shared/SkillsHeatmap';
@@ -117,6 +120,13 @@ export default function App() {
       <Route path="/profile" element={
         <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing']}>
           <AppLayout><Profile /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Kudos — all authenticated roles */}
+      <Route path="/kudos" element={
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing']}>
+          <AppLayout><KudosWall /></AppLayout>
         </ProtectedRoute>
       } />
 

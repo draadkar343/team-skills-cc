@@ -11,6 +11,8 @@ const typeIcon = {
   cert_submitted: '📋',
   cert_approved: '✅',
   cert_rejected: '❌',
+  kudos_received: '🎉',
+  kudos_team: '🌟',
 };
 
 export default function NotificationsDropdown() {

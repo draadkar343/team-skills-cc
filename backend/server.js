@@ -21,6 +21,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const resourcingRoutes = require('./routes/resourcingRoutes');
 const talentRoutes = require('./routes/talentRoutes');
+const kudosRoutes = require('./routes/kudosRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 const { scheduleBirthdayJob } = require('./services/birthdayJob');
@@ -233,6 +234,18 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create talent_candidates:', err.message));
 
+// Kudos / Recognition
+db.query(`
+  CREATE TABLE IF NOT EXISTS kudos (
+    id           SERIAL PRIMARY KEY,
+    from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    to_user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category     VARCHAR(50),
+    message      TEXT NOT NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create kudos:', err.message));
+
 db.query(`
   CREATE TABLE IF NOT EXISTS talent_stage_history (
     id           SERIAL PRIMARY KEY,
@@ -279,6 +292,7 @@ app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/clients', clientRoutes);
 app.use('/api/v1/resourcing', resourcingRoutes);
 app.use('/api/v1/talent', talentRoutes);
+app.use('/api/v1/kudos', kudosRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 

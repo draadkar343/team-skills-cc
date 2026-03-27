@@ -4,19 +4,26 @@ import { useAuth } from '../../context/AuthContext';
 import { getMySkills } from '../../api/skillsApi';
 import { getMyTimesheets } from '../../api/timesheetApi';
 import { getMySquadInfo } from '../../api/squadApi';
+import { getMyKudos } from '../../api/kudosApi';
+import { GiveKudosModal, CATEGORIES } from '../shared/KudosWall';
 import Badge from '../../components/common/Badge';
 import NewsFeed from '../../components/common/NewsFeed';
+
+const CAT_MAP = Object.fromEntries(CATEGORIES.map(c => [c.key, c]));
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
   const [skills, setSkills] = useState([]);
   const [timesheets, setTimesheets] = useState([]);
   const [squadInfo, setSquadInfo] = useState(undefined); // undefined = loading, null = no squad
+  const [myKudos, setMyKudos] = useState([]);
+  const [showGiveKudos, setShowGiveKudos] = useState(false);
 
   useEffect(() => {
     getMySkills().then(setSkills).catch(() => {});
     getMyTimesheets().then(setTimesheets).catch(() => {});
     getMySquadInfo().then(setSquadInfo).catch(() => setSquadInfo(null));
+    getMyKudos().then(k => setMyKudos(k.slice(0, 3))).catch(() => {});
   }, []);
 
   const approved = skills.filter(s => s.status === 'approved').length;
@@ -68,6 +75,42 @@ export default function EmployeeDashboard() {
       <div className="mb-6">
         <NewsFeed />
       </div>
+
+      {/* Recent recognition received */}
+      <div className="mb-6 bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="font-semibold">Recent Recognition</h2>
+          <div className="flex gap-3">
+            <button className="text-sm text-blue-600 hover:underline" onClick={() => setShowGiveKudos(true)}>🎉 Give Recognition</button>
+            <Link to="/kudos" className="text-sm text-blue-600 hover:underline">View all</Link>
+          </div>
+        </div>
+        {myKudos.length === 0 ? (
+          <p className="text-sm text-gray-400">No recognition received yet. Keep up the great work!</p>
+        ) : (
+          <div className="space-y-3">
+            {myKudos.map(k => {
+              const cat = CAT_MAP[k.category];
+              return (
+                <div key={k.id} className="flex gap-3 items-start">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                    {k.from_name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-sm">
+                      <span className="font-medium">{k.from_name}</span>
+                      {cat && <span className="ml-1 text-amber-600">{cat.emoji}</span>}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">"{k.message}"</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <GiveKudosModal open={showGiveKudos} onClose={() => setShowGiveKudos(false)} excludeUserId={user?.id} />
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
