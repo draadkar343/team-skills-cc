@@ -315,6 +315,12 @@ db.query(`
 db.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'resourcing'`).catch(() => {});
 db.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'functional_manager'`).catch(() => {});
 
+// Add wbs_element and client_name columns to timesheet_entries if they don't exist
+db.query(`ALTER TABLE timesheet_entries ADD COLUMN IF NOT EXISTS wbs_element VARCHAR(100)`)
+  .catch(err => console.error('[startup] Failed to add wbs_element column:', err.message));
+db.query(`ALTER TABLE timesheet_entries ADD COLUMN IF NOT EXISTS client_name VARCHAR(150)`)
+  .catch(err => console.error('[startup] Failed to add client_name column:', err.message));
+
 app.use(helmet());
 app.use(cors());
 app.use(express.json());

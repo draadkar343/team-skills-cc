@@ -141,7 +141,7 @@ exports.submitTimesheet = async (req, res, next) => {
 
 exports.addEntry = async (req, res, next) => {
   try {
-    const { workDate, hours, projectCode, description } = req.body;
+    const { workDate, hours, projectCode, description, wbsElement, clientName } = req.body;
     if (!workDate || hours === undefined) return res.status(400).json({ error: 'workDate and hours required' });
 
     const { rows: ts } = await db.query(
@@ -153,8 +153,9 @@ exports.addEntry = async (req, res, next) => {
     }
 
     const { rows } = await db.query(
-      'INSERT INTO timesheet_entries (timesheet_id, work_date, hours, project_code, description) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.params.id, workDate, hours, projectCode || null, description || null]
+      `INSERT INTO timesheet_entries (timesheet_id, work_date, hours, project_code, description, wbs_element, client_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [req.params.id, workDate, hours, projectCode || null, description || null, wbsElement || null, clientName || null]
     );
     await syncTotalHours(req.params.id);
     res.status(201).json(rows[0]);
@@ -163,7 +164,7 @@ exports.addEntry = async (req, res, next) => {
 
 exports.updateEntry = async (req, res, next) => {
   try {
-    const { hours, projectCode, description } = req.body;
+    const { hours, projectCode, description, wbsElement, clientName } = req.body;
     const { rows: ts } = await db.query(
       `SELECT t.status FROM timesheets t
        JOIN timesheet_entries te ON te.timesheet_id = t.id
@@ -178,9 +179,11 @@ exports.updateEntry = async (req, res, next) => {
       `UPDATE timesheet_entries SET
         hours        = COALESCE($1, hours),
         project_code = COALESCE($2, project_code),
-        description  = COALESCE($3, description)
-       WHERE id = $4 RETURNING *`,
-      [hours, projectCode, description, req.params.entryId]
+        description  = COALESCE($3, description),
+        wbs_element  = COALESCE($4, wbs_element),
+        client_name  = COALESCE($5, client_name)
+       WHERE id = $6 RETURNING *`,
+      [hours, projectCode, description, wbsElement, clientName, req.params.entryId]
     );
     await syncTotalHours(req.params.id);
     res.json(rows[0]);

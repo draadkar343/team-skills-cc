@@ -135,17 +135,23 @@ export default function TimesheetApprovals() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b">
-                <th className="pb-2">Date</th><th className="pb-2">Hours</th>
-                <th className="pb-2">Project</th><th className="pb-2">Description</th>
+                <th className="pb-2 pr-3">Date</th>
+                <th className="pb-2 pr-3">Hours</th>
+                <th className="pb-2 pr-3">Project</th>
+                <th className="pb-2 pr-3">Description</th>
+                <th className="pb-2 pr-3">WBS Element</th>
+                <th className="pb-2">Client</th>
               </tr>
             </thead>
             <tbody>
               {(detail.entries || []).map(e => (
                 <tr key={e.id} className="border-b last:border-0">
-                  <td className="py-2">{e.work_date?.slice(0, 10)}</td>
-                  <td className="py-2">{e.hours}</td>
-                  <td className="py-2">{e.project_code || '-'}</td>
-                  <td className="py-2">{e.description || '-'}</td>
+                  <td className="py-2 pr-3">{e.work_date?.slice(0, 10)}</td>
+                  <td className="py-2 pr-3">{e.hours}</td>
+                  <td className="py-2 pr-3">{e.project_code || '-'}</td>
+                  <td className="py-2 pr-3">{e.description || '-'}</td>
+                  <td className="py-2 pr-3">{e.wbs_element || '-'}</td>
+                  <td className="py-2">{e.client_name || '-'}</td>
                 </tr>
               ))}
             </tbody>
