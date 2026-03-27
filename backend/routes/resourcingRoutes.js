@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const role = require('../middleware/roleGuard');
 const c = require('../controllers/resourcingController');
 
+router.get('/stats', auth, role('administrator', 'resourcing'), c.getStats);
 router.get('/overview', auth, role('administrator', 'resourcing'), c.getOverview);
 
 module.exports = router;

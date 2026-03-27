@@ -1,5 +1,75 @@
 const db = require('../config/db');
 
+// GET /resourcing/stats — dashboard summary
+exports.getStats = async (req, res, next) => {
+  try {
+    const [
+      { rows: headcount },
+      { rows: allocation },
+      { rows: pipeline },
+      { rows: squads },
+      { rows: recentCandidates },
+    ] = await Promise.all([
+      // Active employee headcount
+      db.query(`SELECT COUNT(*) AS total FROM users WHERE role = 'employee' AND is_active = true`),
+
+      // Allocation buckets
+      db.query(`
+        SELECT
+          SUM(CASE WHEN total_alloc = 0   THEN 1 ELSE 0 END) AS unallocated,
+          SUM(CASE WHEN total_alloc > 0 AND total_alloc < 100 THEN 1 ELSE 0 END) AS partial,
+          SUM(CASE WHEN total_alloc = 100 THEN 1 ELSE 0 END) AS fully,
+          SUM(CASE WHEN total_alloc > 100 THEN 1 ELSE 0 END) AS over
+        FROM (
+          SELECT u.id,
+            COALESCE((
+              SELECT SUM(ca.percentage) FROM client_allocations ca
+              JOIN clients c ON c.id = ca.client_id
+              WHERE ca.user_id = u.id AND c.is_active = true
+            ), 0) AS total_alloc
+          FROM users u WHERE u.role = 'employee' AND u.is_active = true
+        ) sub
+      `),
+
+      // Talent pipeline counts by stage
+      db.query(`
+        SELECT stage, COUNT(*) AS count
+        FROM talent_candidates
+        GROUP BY stage
+        ORDER BY stage
+      `),
+
+      // Squad count
+      db.query(`SELECT COUNT(*) AS total FROM squads`),
+
+      // 5 most recent talent candidates
+      db.query(`
+        SELECT tc.first_name || ' ' || tc.last_name AS name,
+               tc.stage, tc.job_role_text, tc.created_at,
+               jr.name AS job_role_name
+        FROM talent_candidates tc
+        LEFT JOIN job_roles jr ON jr.id = tc.job_role_id
+        ORDER BY tc.created_at DESC
+        LIMIT 5
+      `),
+    ]);
+
+    const alloc = allocation[0];
+    res.json({
+      headcount: parseInt(headcount[0].total, 10),
+      squads: parseInt(squads[0].total, 10),
+      allocation: {
+        unallocated: parseInt(alloc.unallocated, 10) || 0,
+        partial:     parseInt(alloc.partial,     10) || 0,
+        fully:       parseInt(alloc.fully,       10) || 0,
+        over:        parseInt(alloc.over,         10) || 0,
+      },
+      pipeline: pipeline.map(r => ({ stage: r.stage, count: parseInt(r.count, 10) })),
+      recentCandidates,
+    });
+  } catch (err) { next(err); }
+};
+
 // GET /resourcing/overview
 // Returns all employees across all squads with job role, skills, and allocations
 exports.getOverview = async (req, res, next) => {

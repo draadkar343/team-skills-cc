@@ -30,6 +30,7 @@ import JobRolesView from './pages/admin/JobRolesView';
 import AuditLog from './pages/admin/AuditLog';
 
 // Resourcing
+import ResourcingDashboard from './pages/resourcing/Dashboard';
 import ResourcingView from './pages/resourcing/ResourcingView';
 import TalentPipeline from './pages/resourcing/TalentPipeline';
 
@@ -73,7 +74,7 @@ function RootRedirect() {
   const { user, isAuthenticated } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (user?.role === 'administrator') return <Navigate to="/admin" replace />;
-  if (user?.role === 'resourcing') return <Navigate to="/resourcing" replace />;
+  if (user?.role === 'resourcing') return <Navigate to="/resourcing-dashboard" replace />;
   if (user?.role === 'functional_manager') return <Navigate to="/skill-approvals" replace />;
   return <Navigate to="/dashboard" replace />;
 }
@@ -201,6 +202,11 @@ export default function App() {
       } />
 
       {/* Resourcing */}
+      <Route path="/resourcing-dashboard" element={
+        <ProtectedRoute allowedRoles={['resourcing', 'administrator']}>
+          <AppLayout><ResourcingDashboard /></AppLayout>
+        </ProtectedRoute>
+      } />
       <Route path="/resourcing" element={
         <ProtectedRoute allowedRoles={['resourcing', 'administrator']}>
           <AppLayout><ResourcingView /></AppLayout>
