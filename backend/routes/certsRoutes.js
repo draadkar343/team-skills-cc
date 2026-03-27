@@ -13,10 +13,10 @@ router.patch('/mine/:id', auth, role('employee'), upload, c.updateCert);
 router.delete('/mine/:id', auth, role('employee'), c.deleteCert);
 router.post('/mine/:id/submit', auth, role('employee'), c.submitCert);
 
-// Manager
-router.get('/pending', auth, role('manager'), c.getPendingCerts);
-router.post('/:id/approve', auth, role('manager'), c.approveCert);
-router.post('/:id/reject', auth, role('manager'), c.rejectCert);
+// Manager / Functional Manager approvals
+router.get('/pending', auth, role('manager', 'functional_manager'), c.getPendingCerts);
+router.post('/:id/approve', auth, role('manager', 'functional_manager'), c.approveCert);
+router.post('/:id/reject', auth, role('manager', 'functional_manager'), c.rejectCert);
 
 // Admin
 router.get('/all', auth, role('administrator'), c.getAllCerts);

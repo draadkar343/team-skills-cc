@@ -20,13 +20,13 @@ router.get('/all', auth, role('administrator'), c.getAllSkills);
 router.get('/catalogue/all', auth, role('administrator'), c.getAllCatalogue);
 
 // Heatmap — manager (squad) or admin (all)
-router.get('/heatmap', auth, role('administrator', 'manager', 'resourcing'), c.getSkillsHeatmap);
+router.get('/heatmap', auth, role('administrator', 'manager', 'resourcing', 'functional_manager'), c.getSkillsHeatmap);
 
-// Manager approvals
-router.get('/pending', auth, role('manager'), c.getPendingSkills);
-router.post('/bulk-approve', auth, role('manager'), c.bulkApproveSkills);
-router.post('/:id/approve', auth, role('manager'), c.approveSkill);
-router.post('/:id/reject', auth, role('manager'), c.rejectSkill);
+// Manager / Functional Manager approvals
+router.get('/pending', auth, role('manager', 'functional_manager'), c.getPendingSkills);
+router.post('/bulk-approve', auth, role('manager', 'functional_manager'), c.bulkApproveSkills);
+router.post('/:id/approve', auth, role('manager', 'functional_manager'), c.approveSkill);
+router.post('/:id/reject', auth, role('manager', 'functional_manager'), c.rejectSkill);
 
 // Employee
 router.get('/mine', auth, role('employee'), c.getMySkills);

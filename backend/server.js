@@ -311,6 +311,10 @@ db.query(`
   db.query(`CREATE INDEX IF NOT EXISTS idx_leave_requests_dates ON leave_requests(start_date, end_date)`),
 ])).catch(err => console.error('[startup] Failed to create leave tables:', err.message));
 
+// Extend user_role ENUM with new values (safe to run every start)
+db.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'resourcing'`).catch(() => {});
+db.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'functional_manager'`).catch(() => {});
+
 app.use(helmet());
 app.use(cors());
 app.use(express.json());

@@ -163,38 +163,60 @@ exports.cancelLeave = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// GET /leave/pending — manager: squad pending leave
+// GET /leave/pending — manager / functional_manager: pending leave
 exports.getPendingLeave = async (req, res, next) => {
   try {
-    const { rows } = await db.query(
-      `SELECT lr.*,
-              u.first_name || ' ' || u.last_name AS requester_name,
-              u.avatar_url,
-              lt.name AS leave_type_name, lt.colour AS leave_type_colour
-       FROM leave_requests lr
-       JOIN users u ON u.id = lr.user_id
-       JOIN leave_types lt ON lt.id = lr.leave_type_id
-       JOIN squad_members sm ON sm.user_id = lr.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE s.manager_id = $1 AND lr.status = 'pending'
-       ORDER BY lr.start_date ASC`,
-      [req.user.id]
-    );
+    const isFM = req.user.role === 'functional_manager';
+    const { rows } = isFM
+      ? await db.query(
+          `SELECT lr.*,
+                  u.first_name || ' ' || u.last_name AS requester_name,
+                  u.avatar_url,
+                  lt.name AS leave_type_name, lt.colour AS leave_type_colour,
+                  s.name AS squad_name
+           FROM leave_requests lr
+           JOIN users u ON u.id = lr.user_id
+           JOIN leave_types lt ON lt.id = lr.leave_type_id
+           LEFT JOIN squad_members sm ON sm.user_id = lr.user_id
+           LEFT JOIN squads s ON s.id = sm.squad_id
+           WHERE lr.status = 'pending'
+           ORDER BY lr.start_date ASC`
+        )
+      : await db.query(
+          `SELECT lr.*,
+                  u.first_name || ' ' || u.last_name AS requester_name,
+                  u.avatar_url,
+                  lt.name AS leave_type_name, lt.colour AS leave_type_colour,
+                  s.name AS squad_name
+           FROM leave_requests lr
+           JOIN users u ON u.id = lr.user_id
+           JOIN leave_types lt ON lt.id = lr.leave_type_id
+           JOIN squad_members sm ON sm.user_id = lr.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE s.manager_id = $1 AND lr.status = 'pending'
+           ORDER BY lr.start_date ASC`,
+          [req.user.id]
+        );
     res.json(rows);
   } catch (err) { next(err); }
 };
 
-// PATCH /leave/:id/approve — manager
+// PATCH /leave/:id/approve — manager / functional_manager
 exports.approveLeave = async (req, res, next) => {
   try {
-    // Verify manager-employee relationship
-    const { rows: check } = await db.query(
-      `SELECT lr.user_id FROM leave_requests lr
-       JOIN squad_members sm ON sm.user_id = lr.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE lr.id = $1 AND s.manager_id = $2 AND lr.status = 'pending'`,
-      [req.params.id, req.user.id]
-    );
+    const isFM = req.user.role === 'functional_manager';
+    const { rows: check } = isFM
+      ? await db.query(
+          `SELECT user_id FROM leave_requests WHERE id = $1 AND status = 'pending'`,
+          [req.params.id]
+        )
+      : await db.query(
+          `SELECT lr.user_id FROM leave_requests lr
+           JOIN squad_members sm ON sm.user_id = lr.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE lr.id = $1 AND s.manager_id = $2 AND lr.status = 'pending'`,
+          [req.params.id, req.user.id]
+        );
     if (!check.length) return res.status(404).json({ error: 'Leave request not found or already actioned' });
 
     const { rows } = await db.query(
@@ -224,19 +246,25 @@ exports.approveLeave = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// PATCH /leave/:id/reject — manager
+// PATCH /leave/:id/reject — manager / functional_manager
 exports.rejectLeave = async (req, res, next) => {
   try {
     const { reason } = req.body;
     if (!reason?.trim()) return res.status(400).json({ error: 'Rejection reason is required' });
 
-    const { rows: check } = await db.query(
-      `SELECT lr.user_id FROM leave_requests lr
-       JOIN squad_members sm ON sm.user_id = lr.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE lr.id = $1 AND s.manager_id = $2 AND lr.status = 'pending'`,
-      [req.params.id, req.user.id]
-    );
+    const isFM = req.user.role === 'functional_manager';
+    const { rows: check } = isFM
+      ? await db.query(
+          `SELECT user_id FROM leave_requests WHERE id = $1 AND status = 'pending'`,
+          [req.params.id]
+        )
+      : await db.query(
+          `SELECT lr.user_id FROM leave_requests lr
+           JOIN squad_members sm ON sm.user_id = lr.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE lr.id = $1 AND s.manager_id = $2 AND lr.status = 'pending'`,
+          [req.params.id, req.user.id]
+        );
     if (!check.length) return res.status(404).json({ error: 'Leave request not found or already actioned' });
 
     const { rows } = await db.query(

@@ -113,29 +113,46 @@ exports.submitCert = async (req, res, next) => {
 
 exports.getPendingCerts = async (req, res, next) => {
   try {
-    const { rows } = await db.query(
-      `SELECT ec.*, u.first_name, u.last_name, u.email
-       FROM employee_certifications ec
-       JOIN users u ON u.id = ec.user_id
-       JOIN squad_members sm ON sm.user_id = ec.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE s.manager_id = $1 AND ec.status = 'pending'
-       ORDER BY ec.submitted_at ASC`,
-      [req.user.id]
-    );
+    const isFM = req.user.role === 'functional_manager';
+    const { rows } = isFM
+      ? await db.query(
+          `SELECT ec.*, u.first_name, u.last_name, u.email, s.name AS squad_name
+           FROM employee_certifications ec
+           JOIN users u ON u.id = ec.user_id
+           LEFT JOIN squad_members sm ON sm.user_id = ec.user_id
+           LEFT JOIN squads s ON s.id = sm.squad_id
+           WHERE ec.status = 'pending'
+           ORDER BY ec.submitted_at ASC`
+        )
+      : await db.query(
+          `SELECT ec.*, u.first_name, u.last_name, u.email, s.name AS squad_name
+           FROM employee_certifications ec
+           JOIN users u ON u.id = ec.user_id
+           JOIN squad_members sm ON sm.user_id = ec.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE s.manager_id = $1 AND ec.status = 'pending'
+           ORDER BY ec.submitted_at ASC`,
+          [req.user.id]
+        );
     res.json(rows);
   } catch (err) { next(err); }
 };
 
 exports.approveCert = async (req, res, next) => {
   try {
-    const { rows: valid } = await db.query(
-      `SELECT ec.id FROM employee_certifications ec
-       JOIN squad_members sm ON sm.user_id = ec.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE ec.id = $1 AND s.manager_id = $2 AND ec.status = 'pending'`,
-      [req.params.id, req.user.id]
-    );
+    const isFM = req.user.role === 'functional_manager';
+    const { rows: valid } = isFM
+      ? await db.query(
+          `SELECT id FROM employee_certifications WHERE id = $1 AND status = 'pending'`,
+          [req.params.id]
+        )
+      : await db.query(
+          `SELECT ec.id FROM employee_certifications ec
+           JOIN squad_members sm ON sm.user_id = ec.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE ec.id = $1 AND s.manager_id = $2 AND ec.status = 'pending'`,
+          [req.params.id, req.user.id]
+        );
     if (!valid.length) return res.status(404).json({ error: 'Certification not found or not pending' });
 
     const { rows } = await db.query(
@@ -166,13 +183,19 @@ exports.rejectCert = async (req, res, next) => {
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ error: 'Rejection reason required' });
 
-    const { rows: valid } = await db.query(
-      `SELECT ec.id FROM employee_certifications ec
-       JOIN squad_members sm ON sm.user_id = ec.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE ec.id = $1 AND s.manager_id = $2 AND ec.status = 'pending'`,
-      [req.params.id, req.user.id]
-    );
+    const isFM = req.user.role === 'functional_manager';
+    const { rows: valid } = isFM
+      ? await db.query(
+          `SELECT id FROM employee_certifications WHERE id = $1 AND status = 'pending'`,
+          [req.params.id]
+        )
+      : await db.query(
+          `SELECT ec.id FROM employee_certifications ec
+           JOIN squad_members sm ON sm.user_id = ec.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE ec.id = $1 AND s.manager_id = $2 AND ec.status = 'pending'`,
+          [req.params.id, req.user.id]
+        );
     if (!valid.length) return res.status(404).json({ error: 'Certification not found or not pending' });
 
     const { rows } = await db.query(

@@ -2,7 +2,7 @@
 -- ENUMS
 -- ============================================================
 
-CREATE TYPE user_role AS ENUM ('employee', 'manager', 'administrator');
+CREATE TYPE user_role AS ENUM ('employee', 'manager', 'administrator', 'resourcing', 'functional_manager');
 CREATE TYPE workflow_status AS ENUM ('draft', 'pending', 'approved', 'rejected');
 
 -- ============================================================

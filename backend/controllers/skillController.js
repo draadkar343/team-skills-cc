@@ -268,33 +268,52 @@ exports.submitAllSkills = async (req, res, next) => {
 
 exports.getPendingSkills = async (req, res, next) => {
   try {
-    const { rows } = await db.query(
-      `SELECT es.*, u.first_name, u.last_name, u.email,
-              sc.name AS skill_name, cat.name AS category_name
-       FROM employee_skills es
-       JOIN users u ON u.id = es.user_id
-       JOIN skills_catalogue sc ON sc.id = es.skill_id
-       LEFT JOIN skill_categories cat ON cat.id = sc.category_id
-       JOIN squad_members sm ON sm.user_id = es.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE s.manager_id = $1 AND es.status = 'pending'
-       ORDER BY es.submitted_at ASC`,
-      [req.user.id]
-    );
+    const isFM = req.user.role === 'functional_manager';
+    const { rows } = isFM
+      ? await db.query(
+          `SELECT es.*, u.first_name, u.last_name, u.email,
+                  sc.name AS skill_name, cat.name AS category_name,
+                  s.name AS squad_name
+           FROM employee_skills es
+           JOIN users u ON u.id = es.user_id
+           JOIN skills_catalogue sc ON sc.id = es.skill_id
+           LEFT JOIN skill_categories cat ON cat.id = sc.category_id
+           LEFT JOIN squad_members sm ON sm.user_id = es.user_id
+           LEFT JOIN squads s ON s.id = sm.squad_id
+           WHERE es.status = 'pending'
+           ORDER BY es.submitted_at ASC`
+        )
+      : await db.query(
+          `SELECT es.*, u.first_name, u.last_name, u.email,
+                  sc.name AS skill_name, cat.name AS category_name,
+                  s.name AS squad_name
+           FROM employee_skills es
+           JOIN users u ON u.id = es.user_id
+           JOIN skills_catalogue sc ON sc.id = es.skill_id
+           LEFT JOIN skill_categories cat ON cat.id = sc.category_id
+           JOIN squad_members sm ON sm.user_id = es.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE s.manager_id = $1 AND es.status = 'pending'
+           ORDER BY es.submitted_at ASC`,
+          [req.user.id]
+        );
     res.json(rows);
   } catch (err) { next(err); }
 };
 
 exports.approveSkill = async (req, res, next) => {
   try {
-    const { rows: check } = await db.query(
-      `SELECT es.id, es.status FROM employee_skills es
-       JOIN squad_members sm ON sm.user_id = es.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE es.id = $1 AND s.manager_id = $2`,
-      [req.params.id, req.user.id]
-    );
-    if (!check.length) return res.status(404).json({ error: 'Skill not found in your squad' });
+    const isFM = req.user.role === 'functional_manager';
+    const { rows: check } = isFM
+      ? await db.query(`SELECT id, status FROM employee_skills WHERE id = $1`, [req.params.id])
+      : await db.query(
+          `SELECT es.id, es.status FROM employee_skills es
+           JOIN squad_members sm ON sm.user_id = es.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE es.id = $1 AND s.manager_id = $2`,
+          [req.params.id, req.user.id]
+        );
+    if (!check.length) return res.status(404).json({ error: 'Skill not found' });
     if (check[0].status !== 'pending') return res.status(400).json({ error: 'Skill is not pending' });
 
     const { rows } = await db.query(
@@ -336,14 +355,17 @@ exports.rejectSkill = async (req, res, next) => {
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ error: 'Rejection reason required' });
 
-    const { rows: check } = await db.query(
-      `SELECT es.id, es.status FROM employee_skills es
-       JOIN squad_members sm ON sm.user_id = es.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE es.id = $1 AND s.manager_id = $2`,
-      [req.params.id, req.user.id]
-    );
-    if (!check.length) return res.status(404).json({ error: 'Skill not found in your squad' });
+    const isFM = req.user.role === 'functional_manager';
+    const { rows: check } = isFM
+      ? await db.query(`SELECT id, status FROM employee_skills WHERE id = $1`, [req.params.id])
+      : await db.query(
+          `SELECT es.id, es.status FROM employee_skills es
+           JOIN squad_members sm ON sm.user_id = es.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE es.id = $1 AND s.manager_id = $2`,
+          [req.params.id, req.user.id]
+        );
+    if (!check.length) return res.status(404).json({ error: 'Skill not found' });
     if (check[0].status !== 'pending') return res.status(400).json({ error: 'Skill is not pending' });
 
     const { rows } = await db.query(
@@ -388,14 +410,19 @@ exports.bulkApproveSkills = async (req, res, next) => {
       return res.status(400).json({ error: 'ids array required' });
     }
 
-    // Only approve skills that belong to this manager's squad and are pending
-    const { rows: valid } = await db.query(
-      `SELECT es.id FROM employee_skills es
-       JOIN squad_members sm ON sm.user_id = es.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE es.id = ANY($1) AND s.manager_id = $2 AND es.status = 'pending'`,
-      [ids, req.user.id]
-    );
+    const isFM = req.user.role === 'functional_manager';
+    const { rows: valid } = isFM
+      ? await db.query(
+          `SELECT id FROM employee_skills WHERE id = ANY($1) AND status = 'pending'`,
+          [ids]
+        )
+      : await db.query(
+          `SELECT es.id FROM employee_skills es
+           JOIN squad_members sm ON sm.user_id = es.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE es.id = ANY($1) AND s.manager_id = $2 AND es.status = 'pending'`,
+          [ids, req.user.id]
+        );
     if (!valid.length) return res.status(404).json({ error: 'No valid pending skills found' });
 
     const validIds = valid.map(r => r.id);

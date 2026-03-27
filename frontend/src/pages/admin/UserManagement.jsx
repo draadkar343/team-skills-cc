@@ -98,7 +98,7 @@ export default function UserManagement() {
     } finally { setBulkLoading(false); }
   };
 
-  const roleBadge = { employee: 'bg-gray-100 text-gray-600', manager: 'bg-blue-100 text-blue-700', administrator: 'bg-purple-100 text-purple-700', resourcing: 'bg-teal-100 text-teal-700' };
+  const roleBadge = { employee: 'bg-gray-100 text-gray-600', manager: 'bg-blue-100 text-blue-700', administrator: 'bg-purple-100 text-purple-700', resourcing: 'bg-teal-100 text-teal-700', functional_manager: 'bg-orange-100 text-orange-700' };
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -129,7 +129,9 @@ export default function UserManagement() {
                 <td className="p-4 text-gray-500">{u.email}</td>
                 <td className="p-4 text-gray-500 text-sm">{u.jobRoleName || '-'}</td>
                 <td className="p-4">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${roleBadge[u.role]}`}>{u.role}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${roleBadge[u.role]}`}>
+                    {u.role === 'functional_manager' ? 'Functional Manager' : u.role}
+                  </span>
                 </td>
                 <td className="p-4">
                   <span className={`text-xs font-medium ${u.isActive ? 'text-green-600' : 'text-red-500'}`}>
@@ -208,6 +210,7 @@ export default function UserManagement() {
               value={form.role} onChange={e => setForm(x => ({ ...x, role: e.target.value }))}>
               <option value="employee">Employee</option>
               <option value="manager">Manager</option>
+              <option value="functional_manager">Functional Manager</option>
               <option value="administrator">Administrator</option>
               <option value="resourcing">Resourcing</option>
             </select>

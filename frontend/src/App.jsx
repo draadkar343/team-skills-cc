@@ -74,6 +74,7 @@ function RootRedirect() {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (user?.role === 'administrator') return <Navigate to="/admin" replace />;
   if (user?.role === 'resourcing') return <Navigate to="/resourcing" replace />;
+  if (user?.role === 'functional_manager') return <Navigate to="/skill-approvals" replace />;
   return <Navigate to="/dashboard" replace />;
 }
 
@@ -122,33 +123,33 @@ export default function App() {
 
       {/* Profile — all authenticated roles */}
       <Route path="/profile" element={
-        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing']}>
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
           <AppLayout><Profile /></AppLayout>
         </ProtectedRoute>
       } />
 
       {/* Kudos — all authenticated roles */}
       <Route path="/kudos" element={
-        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing']}>
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
           <AppLayout><KudosWall /></AppLayout>
         </ProtectedRoute>
       } />
 
       {/* Leave — all authenticated roles */}
       <Route path="/my-leave" element={
-        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing']}>
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
           <AppLayout><MyLeave /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/team-calendar" element={
-        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing']}>
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
           <AppLayout><TeamLeaveCalendar /></AppLayout>
         </ProtectedRoute>
       } />
 
-      {/* Manager — leave approvals */}
+      {/* Manager / Functional Manager — leave approvals */}
       <Route path="/leave-approvals" element={
-        <ProtectedRoute allowedRoles={['manager', 'administrator']}>
+        <ProtectedRoute allowedRoles={['manager', 'administrator', 'functional_manager']}>
           <AppLayout><LeaveApprovals /></AppLayout>
         </ProtectedRoute>
       } />
@@ -160,17 +161,17 @@ export default function App() {
         </ProtectedRoute>
       } />
       <Route path="/skill-approvals" element={
-        <ProtectedRoute allowedRoles={['manager']}>
+        <ProtectedRoute allowedRoles={['manager', 'functional_manager']}>
           <AppLayout><SkillApprovals /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/cert-approvals" element={
-        <ProtectedRoute allowedRoles={['manager']}>
+        <ProtectedRoute allowedRoles={['manager', 'functional_manager']}>
           <AppLayout><CertificationApprovals /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/timesheet-approvals" element={
-        <ProtectedRoute allowedRoles={['manager']}>
+        <ProtectedRoute allowedRoles={['manager', 'functional_manager']}>
           <AppLayout><TimesheetApprovals /></AppLayout>
         </ProtectedRoute>
       } />
@@ -189,12 +190,12 @@ export default function App() {
 
       {/* Manager — heatmap and workload */}
       <Route path="/skills-heatmap" element={
-        <ProtectedRoute allowedRoles={['manager', 'administrator', 'resourcing']}>
+        <ProtectedRoute allowedRoles={['manager', 'administrator', 'resourcing', 'functional_manager']}>
           <AppLayout><SkillsHeatmap /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/workload" element={
-        <ProtectedRoute allowedRoles={['manager', 'administrator', 'resourcing']}>
+        <ProtectedRoute allowedRoles={['manager', 'administrator', 'resourcing', 'functional_manager']}>
           <AppLayout><WorkloadView /></AppLayout>
         </ProtectedRoute>
       } />

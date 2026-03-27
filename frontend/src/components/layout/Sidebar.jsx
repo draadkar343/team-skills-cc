@@ -43,6 +43,19 @@ export default function Sidebar() {
           <NavLink to="/kudos" className={linkClass}>Recognition</NavLink>
         </>
       )}
+      {user?.role === 'functional_manager' && (
+        <>
+          <NavLink to="/skill-approvals" className={linkClass}>Skill Approvals</NavLink>
+          <NavLink to="/cert-approvals" className={linkClass}>Cert Approvals</NavLink>
+          <NavLink to="/timesheet-approvals" className={linkClass}>Timesheet Approvals</NavLink>
+          <NavLink to="/leave-approvals" className={linkClass}>Leave Approvals</NavLink>
+          <NavLink to="/skills-heatmap" className={linkClass}>Skills Heatmap</NavLink>
+          <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
+          <NavLink to="/my-leave" className={linkClass}>My Leave</NavLink>
+          <NavLink to="/team-calendar" className={linkClass}>Team Calendar</NavLink>
+          <NavLink to="/kudos" className={linkClass}>Recognition</NavLink>
+        </>
+      )}
       {user?.role === 'resourcing' && (
         <>
           <NavLink to="/resourcing" className={linkClass}>Resourcing Overview</NavLink>

@@ -15,10 +15,10 @@ router.get('/my', auth, c.getMyLeave);
 router.post('/', auth, c.createLeave);
 router.patch('/:id/cancel', auth, c.cancelLeave);
 
-// Manager approval
-router.get('/pending', auth, role('manager', 'administrator'), c.getPendingLeave);
-router.patch('/:id/approve', auth, role('manager', 'administrator'), c.approveLeave);
-router.patch('/:id/reject', auth, role('manager', 'administrator'), c.rejectLeave);
+// Manager / Functional Manager approval
+router.get('/pending', auth, role('manager', 'administrator', 'functional_manager'), c.getPendingLeave);
+router.patch('/:id/approve', auth, role('manager', 'administrator', 'functional_manager'), c.approveLeave);
+router.patch('/:id/reject', auth, role('manager', 'administrator', 'functional_manager'), c.rejectLeave);
 
 // AI leave suggestions — all roles
 router.get('/suggestions', auth, c.getSuggestions);

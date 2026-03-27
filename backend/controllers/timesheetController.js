@@ -209,30 +209,44 @@ exports.deleteEntry = async (req, res, next) => {
 
 exports.getPendingTimesheets = async (req, res, next) => {
   try {
-    const { rows } = await db.query(
-      `SELECT t.*, u.first_name, u.last_name, u.email
-       FROM timesheets t
-       JOIN users u ON u.id = t.user_id
-       JOIN squad_members sm ON sm.user_id = t.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE s.manager_id = $1 AND t.status = 'pending'
-       ORDER BY t.submitted_at ASC`,
-      [req.user.id]
-    );
+    const isFM = req.user.role === 'functional_manager';
+    const { rows } = isFM
+      ? await db.query(
+          `SELECT t.*, u.first_name, u.last_name, u.email, s.name AS squad_name
+           FROM timesheets t
+           JOIN users u ON u.id = t.user_id
+           LEFT JOIN squad_members sm ON sm.user_id = t.user_id
+           LEFT JOIN squads s ON s.id = sm.squad_id
+           WHERE t.status = 'pending'
+           ORDER BY t.submitted_at ASC`
+        )
+      : await db.query(
+          `SELECT t.*, u.first_name, u.last_name, u.email, s.name AS squad_name
+           FROM timesheets t
+           JOIN users u ON u.id = t.user_id
+           JOIN squad_members sm ON sm.user_id = t.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE s.manager_id = $1 AND t.status = 'pending'
+           ORDER BY t.submitted_at ASC`,
+          [req.user.id]
+        );
     res.json(rows);
   } catch (err) { next(err); }
 };
 
 exports.approveTimesheet = async (req, res, next) => {
   try {
-    const { rows: check } = await db.query(
-      `SELECT t.id, t.status FROM timesheets t
-       JOIN squad_members sm ON sm.user_id = t.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE t.id = $1 AND s.manager_id = $2`,
-      [req.params.id, req.user.id]
-    );
-    if (!check.length) return res.status(404).json({ error: 'Timesheet not found in your squad' });
+    const isFM = req.user.role === 'functional_manager';
+    const { rows: check } = isFM
+      ? await db.query(`SELECT id, status FROM timesheets WHERE id = $1`, [req.params.id])
+      : await db.query(
+          `SELECT t.id, t.status FROM timesheets t
+           JOIN squad_members sm ON sm.user_id = t.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE t.id = $1 AND s.manager_id = $2`,
+          [req.params.id, req.user.id]
+        );
+    if (!check.length) return res.status(404).json({ error: 'Timesheet not found' });
     if (check[0].status !== 'pending') return res.status(400).json({ error: 'Timesheet is not pending' });
 
     const { rows } = await db.query(
@@ -267,14 +281,17 @@ exports.rejectTimesheet = async (req, res, next) => {
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ error: 'Rejection reason required' });
 
-    const { rows: check } = await db.query(
-      `SELECT t.id, t.status FROM timesheets t
-       JOIN squad_members sm ON sm.user_id = t.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE t.id = $1 AND s.manager_id = $2`,
-      [req.params.id, req.user.id]
-    );
-    if (!check.length) return res.status(404).json({ error: 'Timesheet not found in your squad' });
+    const isFM = req.user.role === 'functional_manager';
+    const { rows: check } = isFM
+      ? await db.query(`SELECT id, status FROM timesheets WHERE id = $1`, [req.params.id])
+      : await db.query(
+          `SELECT t.id, t.status FROM timesheets t
+           JOIN squad_members sm ON sm.user_id = t.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE t.id = $1 AND s.manager_id = $2`,
+          [req.params.id, req.user.id]
+        );
+    if (!check.length) return res.status(404).json({ error: 'Timesheet not found' });
     if (check[0].status !== 'pending') return res.status(400).json({ error: 'Timesheet is not pending' });
 
     const { rows } = await db.query(
@@ -313,14 +330,19 @@ exports.bulkApproveTimesheets = async (req, res, next) => {
       return res.status(400).json({ error: 'ids array required' });
     }
 
-    // Only approve timesheets that belong to this manager's squad and are pending
-    const { rows: valid } = await db.query(
-      `SELECT t.id FROM timesheets t
-       JOIN squad_members sm ON sm.user_id = t.user_id
-       JOIN squads s ON s.id = sm.squad_id
-       WHERE t.id = ANY($1) AND s.manager_id = $2 AND t.status = 'pending'`,
-      [ids, req.user.id]
-    );
+    const isFM = req.user.role === 'functional_manager';
+    const { rows: valid } = isFM
+      ? await db.query(
+          `SELECT id FROM timesheets WHERE id = ANY($1) AND status = 'pending'`,
+          [ids]
+        )
+      : await db.query(
+          `SELECT t.id FROM timesheets t
+           JOIN squad_members sm ON sm.user_id = t.user_id
+           JOIN squads s ON s.id = sm.squad_id
+           WHERE t.id = ANY($1) AND s.manager_id = $2 AND t.status = 'pending'`,
+          [ids, req.user.id]
+        );
     if (!valid.length) return res.status(404).json({ error: 'No valid pending timesheets found' });
 
     const validIds = valid.map(r => r.id);
