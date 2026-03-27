@@ -10,6 +10,7 @@ router.post('/bulk-import', auth, role('administrator'), csvUpload.single('file'
 router.get('/:id', auth, role('administrator'), c.getUser);
 router.patch('/:id', auth, role('administrator'), c.updateUser);
 router.delete('/:id', auth, role('administrator'), c.deleteUser);
+router.delete('/:id/permanent', auth, role('administrator'), c.permanentDeleteUser);
 router.post('/:id/reset-password', auth, role('administrator'), c.resetPassword);
 
 module.exports = router;

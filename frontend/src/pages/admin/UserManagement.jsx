@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { listUsers, createUser, updateUser, deleteUser, resetUserPassword, bulkImportUsers } from '../../api/adminApi';
+import { listUsers, createUser, updateUser, deleteUser, permanentlyDeleteUser, resetUserPassword, bulkImportUsers } from '../../api/adminApi';
 import { getJobRoles } from '../../api/jobRoleApi';
 import { COUNTRIES } from '../../utils/countries';
 import Badge from '../../components/common/Badge';
@@ -21,6 +21,8 @@ export default function UserManagement() {
   const [bulkFile, setBulkFile] = useState(null);
   const [bulkResult, setBulkResult] = useState(null);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // user to permanently delete
+  const [deleteError, setDeleteError] = useState('');
 
   const load = () => Promise.all([listUsers(), getJobRoles()]).then(([u, jr]) => { setUsers(u); setJobRoles(jr); }).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -63,6 +65,17 @@ export default function UserManagement() {
     if (!window.confirm('Deactivate this user?')) return;
     await deleteUser(id);
     await load();
+  };
+
+  const handlePermanentDelete = async () => {
+    setDeleteError('');
+    try {
+      await permanentlyDeleteUser(deleteTarget.id);
+      setDeleteTarget(null);
+      await load();
+    } catch (err) {
+      setDeleteError(err.response?.data?.error || 'Delete failed');
+    }
   };
 
   const handleReset = async () => {
@@ -144,6 +157,9 @@ export default function UserManagement() {
                     <Button variant="secondary" className="py-1 px-2 text-xs" onClick={() => openReset(u)}>Reset PW</Button>
                     {u.isActive && (
                       <Button variant="danger" className="py-1 px-2 text-xs" onClick={() => handleDeactivate(u.id)}>Deactivate</Button>
+                    )}
+                    {!u.isActive && (
+                      <Button variant="danger" className="py-1 px-2 text-xs" onClick={() => { setDeleteTarget(u); setDeleteError(''); }}>Delete</Button>
                     )}
                   </div>
                 </td>
@@ -281,6 +297,32 @@ export default function UserManagement() {
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" onClick={() => setBulkModal(false)}>Close</Button>
             <Button onClick={handleBulkImport} loading={bulkLoading} disabled={!bulkFile}>Import</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Permanent Delete Confirmation Modal */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Permanently Delete User"
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p className="text-sm font-medium text-red-800 dark:text-red-300">This action cannot be undone.</p>
+            <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+              All data belonging to <strong>{deleteTarget?.firstName} {deleteTarget?.lastName}</strong> will be permanently removed — skills, timesheets, certifications, leave records, and more.
+            </p>
+          </div>
+          {deleteError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
+          )}
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Any content they created (clients, API keys, etc.) will be reassigned to your account.
+          </p>
+          <div className="flex justify-end gap-3 pt-1">
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="danger" onClick={handlePermanentDelete}>Yes, permanently delete</Button>
           </div>
         </div>
       </Modal>

@@ -89,6 +89,48 @@ exports.deleteUser = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.permanentDeleteUser = async (req, res, next) => {
+  try {
+    const uid = parseInt(req.params.id);
+
+    // Cannot delete yourself
+    if (uid === req.user.id) {
+      return res.status(400).json({ error: 'You cannot delete your own account' });
+    }
+
+    // Must be deactivated first
+    const { rows: userRows } = await db.query('SELECT is_active FROM users WHERE id = $1', [uid]);
+    if (!userRows.length) return res.status(404).json({ error: 'User not found' });
+    if (userRows[0].is_active) {
+      return res.status(400).json({ error: 'User must be deactivated before permanent deletion' });
+    }
+
+    // Block if user still manages a squad — admin must reassign first
+    const { rows: squadRows } = await db.query('SELECT name FROM squads WHERE manager_id = $1', [uid]);
+    if (squadRows.length) {
+      return res.status(409).json({
+        error: `Cannot delete: this user manages squad "${squadRows[0].name}". Reassign the squad manager first.`,
+      });
+    }
+
+    // Reassign RESTRICT created_by references to the acting admin
+    const adminId = req.user.id;
+    await db.query('UPDATE clients               SET created_by = $1 WHERE created_by = $2', [adminId, uid]);
+    await db.query('UPDATE client_allocations    SET created_by = $1 WHERE created_by = $2', [adminId, uid]);
+    await db.query('UPDATE api_keys              SET created_by = $1 WHERE created_by = $2', [adminId, uid]);
+    await db.query('UPDATE external_integrations SET created_by = $1 WHERE created_by = $2', [adminId, uid]);
+    await db.query('UPDATE webhooks              SET created_by = $1 WHERE created_by = $2', [adminId, uid]);
+    await db.query('UPDATE talent_candidates     SET created_by = $1 WHERE created_by = $2', [adminId, uid]);
+    await db.query('UPDATE leave_types           SET created_by = $1 WHERE created_by = $2', [adminId, uid]);
+    await db.query('UPDATE news_items            SET created_by = $1 WHERE created_by = $2', [adminId, uid]);
+
+    // DELETE — CASCADE and SET NULL handle the rest (squad_members, skills, timesheets, etc.)
+    await db.query('DELETE FROM users WHERE id = $1', [uid]);
+
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+};
+
 exports.resetPassword = async (req, res, next) => {
   try {
     const { newPassword } = req.body;
