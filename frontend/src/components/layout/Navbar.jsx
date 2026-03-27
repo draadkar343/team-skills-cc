@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getConfig } from '../../api/adminApi';
+import NotificationsDropdown from '../common/NotificationsDropdown';
 
 function SunIcon() {
   return (
@@ -55,6 +56,7 @@ export default function Navbar() {
               {user?.firstName?.[0]}{user?.lastName?.[0]}
             </div>
           )}
+          <NotificationsDropdown />
           <button
             onClick={toggle}
             className="p-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors"

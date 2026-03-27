@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getAllCerts } from '../../api/certsApi';
 import Badge from '../../components/common/Badge';
+import { exportToCsv } from '../../utils/exportCsv';
 
 export default function AllCertifications() {
   const [certs, setCerts] = useState([]);
@@ -17,10 +18,23 @@ export default function AllCertifications() {
       <h1 className="text-2xl font-bold mb-1">All Certifications</h1>
       <p className="text-sm text-gray-500 mb-6">All employee certifications across the organisation.</p>
 
-      <div className="mb-4">
+      <div className="flex items-center gap-3 mb-4">
         <input type="text" placeholder="Filter by employee, certification or provider..."
           className="w-full max-w-sm border border-gray-300 rounded-lg px-3 py-2 text-sm"
           value={filter} onChange={e => setFilter(e.target.value)} />
+        <button
+          onClick={() => exportToCsv('certifications.csv',
+            ['Employee', 'Email', 'Certification', 'Provider', 'Obtained', 'Expires', 'Status'],
+            filtered.map(c => [
+              `${c.first_name} ${c.last_name}`, c.email, c.name,
+              c.provider || '', c.date_obtained?.slice(0, 10),
+              c.expiration_date?.slice(0, 10) || '', c.status
+            ])
+          )}
+          className="px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 bg-white hover:bg-gray-50"
+        >
+          Export CSV
+        </button>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

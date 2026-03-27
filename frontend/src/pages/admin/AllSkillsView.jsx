@@ -4,6 +4,7 @@ import { getMainSkills } from '../../api/jobRoleApi';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
+import { exportToCsv } from '../../utils/exportCsv';
 
 export default function AllSkillsView() {
   const [skills, setSkills] = useState([]);
@@ -130,10 +131,17 @@ export default function AllSkillsView() {
 
       {tab === 'skills' && (
         <div>
-          <div className="mb-4">
+          <div className="flex items-center gap-3 mb-4">
             <input type="text" placeholder="Filter by employee or skill name..."
               className="w-full max-w-sm border border-gray-300 rounded-lg px-3 py-2 text-sm"
               value={filter} onChange={e => setFilter(e.target.value)} />
+            <Button variant="secondary" onClick={() => exportToCsv('employee_skills.csv',
+              ['Employee', 'Email', 'Skill', 'Category', 'Weighting', 'Status'],
+              filtered.map(s => [
+                `${s.first_name} ${s.last_name}`, s.email, s.skill_name,
+                s.category_name || '', s.weighting, s.status
+              ])
+            )}>Export CSV</Button>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <table className="w-full text-sm">

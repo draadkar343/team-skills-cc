@@ -5,6 +5,7 @@ const c = require('../controllers/timesheetController');
 
 // Admin
 router.get('/all', auth, role('administrator'), c.getAllTimesheets);
+router.get('/workload', auth, role('administrator', 'manager'), c.getWorkload);
 
 // Manager
 router.get('/pending', auth, role('manager'), c.getPendingTimesheets);

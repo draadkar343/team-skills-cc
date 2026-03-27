@@ -17,6 +17,7 @@ const certsRoutes = require('./routes/certsRoutes');
 const integrationsRoutes = require('./routes/integrationsRoutes');
 const publicApiRoutes = require('./routes/publicApiRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 const { scheduleBirthdayJob } = require('./services/birthdayJob');
@@ -146,6 +147,23 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create audit_retention_policies:', err.message));
 
+// Create notifications table if it doesn't exist
+db.query(`
+  CREATE TABLE IF NOT EXISTS notifications (
+    id         SERIAL PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type       VARCHAR(50) NOT NULL,
+    title      VARCHAR(255) NOT NULL,
+    message    TEXT NOT NULL,
+    is_read    BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create notifications:', err.message));
+
+db.query(`
+  CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC)
+`).catch(() => {});
+
 // Create password_reset_tokens table if it doesn't exist (safe to run on every start)
 db.query(`
   CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -176,6 +194,7 @@ app.use('/api/v1/certs', certsRoutes);
 app.use('/api/v1/integrations', integrationsRoutes);
 app.use('/api/v1/public', publicApiRoutes);
 app.use('/api/v1/chat', chatRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 

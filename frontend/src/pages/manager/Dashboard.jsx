@@ -15,7 +15,7 @@ export default function ManagerDashboard() {
   useEffect(() => {
     getPendingSkills().then(setPendingSkills).catch(() => {});
     getPendingTimesheets().then(setPendingTs).catch(() => {});
-    getMySquad().then(setSquad).catch(() => {});
+    getMySquad().then(data => setSquad(data[0] || null)).catch(() => {});
   }, []);
 
   return (

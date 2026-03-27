@@ -31,6 +31,8 @@ import AuditLog from './pages/admin/AuditLog';
 
 // Manager extra
 import MainSkillsView from './pages/manager/MainSkillsView';
+import SkillsHeatmap from './pages/shared/SkillsHeatmap';
+import WorkloadView from './pages/shared/WorkloadView';
 import UserManagement from './pages/admin/UserManagement';
 import AdminSquadManagement from './pages/admin/SquadManagement';
 import AllSkillsView from './pages/admin/AllSkillsView';
@@ -136,6 +138,18 @@ export default function App() {
       <Route path="/squad" element={
         <ProtectedRoute allowedRoles={['manager']}>
           <AppLayout><SquadManagement /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Manager — heatmap and workload */}
+      <Route path="/skills-heatmap" element={
+        <ProtectedRoute allowedRoles={['manager', 'administrator']}>
+          <AppLayout><SkillsHeatmap /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/workload" element={
+        <ProtectedRoute allowedRoles={['manager', 'administrator']}>
+          <AppLayout><WorkloadView /></AppLayout>
         </ProtectedRoute>
       } />
 

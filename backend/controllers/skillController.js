@@ -1,11 +1,12 @@
 const db = require('../config/db');
 const email = require('../services/emailService');
 const webhook = require('../services/webhookService');
+const { createNotification } = require('../services/notificationService');
 
 // Query the manager for a given employee user id (via squad membership)
 async function getManagerForUser(userId) {
   const { rows } = await db.query(
-    `SELECT u.email, u.first_name, u.last_name
+    `SELECT u.id, u.email, u.first_name, u.last_name
      FROM users u
      JOIN squads s ON s.manager_id = u.id
      JOIN squad_members sm ON sm.squad_id = s.id
@@ -209,6 +210,8 @@ exports.submitSkill = async (req, res, next) => {
         `${emp[0].first_name} ${emp[0].last_name}`,
         `${sc[0]?.name || 'a skill'}`
       );
+      createNotification(manager.id, 'skill_submitted', 'Skill Pending Approval',
+        `${emp[0].first_name} ${emp[0].last_name} submitted "${sc[0]?.name || 'a skill'}" for approval.`);
     }
     const { rows: sc } = await db.query(
       `SELECT sc.name, cat.name AS category FROM skills_catalogue sc LEFT JOIN skill_categories cat ON cat.id = sc.category_id WHERE sc.id = $1`,
@@ -254,6 +257,8 @@ exports.submitAllSkills = async (req, res, next) => {
         `${emp[0].first_name} ${emp[0].last_name}`,
         ids.length
       );
+      createNotification(manager.id, 'skill_submitted', 'Skills Pending Approval',
+        `${emp[0].first_name} ${emp[0].last_name} submitted ${ids.length} skill(s) for approval.`);
     }
     res.json({ submitted: ids.length });
   } catch (err) { next(err); }
@@ -314,6 +319,8 @@ exports.approveSkill = async (req, res, next) => {
       const mgr = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]);
       const mgrName = `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`;
       email.sendSkillApproved(detail[0].email, detail[0].first_name, detail[0].skill_name, mgrName);
+      createNotification(rows[0].user_id, 'skill_approved', 'Skill Approved',
+        `Your skill "${detail[0].skill_name}" has been approved by ${mgrName}.`);
       webhook.fire('skill.approved', {
         skillId: rows[0].id, userId: rows[0].user_id,
         userName: `${detail[0].first_name} ${detail[0].last_name}`,
@@ -362,6 +369,8 @@ exports.rejectSkill = async (req, res, next) => {
       const mgr = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]);
       const mgrName = `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`;
       email.sendSkillRejected(detail[0].email, detail[0].first_name, detail[0].skill_name, mgrName, reason);
+      createNotification(rows[0].user_id, 'skill_rejected', 'Skill Rejected',
+        `Your skill "${detail[0].skill_name}" was rejected by ${mgrName}. Reason: ${reason}`);
       webhook.fire('skill.rejected', {
         skillId: rows[0].id, userId: rows[0].user_id,
         userName: `${detail[0].first_name} ${detail[0].last_name}`,
@@ -586,6 +595,57 @@ exports.bulkUploadSubSkills = async (req, res, next) => {
     }
 
     res.json({ inserted, skipped, errors });
+  } catch (err) { next(err); }
+};
+
+// ── HEATMAP ────────────────────────────────────────────────────────────────
+
+// GET /skills/heatmap — manager sees their squad; admin sees all
+exports.getSkillsHeatmap = async (req, res, next) => {
+  try {
+    let employeeRows, skillRows, matrixRows;
+
+    if (req.user.role === 'manager') {
+      ({ rows: employeeRows } = await db.query(
+        `SELECT DISTINCT u.id, u.first_name || ' ' || u.last_name AS name
+         FROM users u
+         JOIN squad_members sm ON sm.user_id = u.id
+         JOIN squads s ON s.id = sm.squad_id
+         WHERE s.manager_id = $1 ORDER BY name`,
+        [req.user.id]
+      ));
+      ({ rows: matrixRows } = await db.query(
+        `SELECT es.user_id, es.skill_id, es.weighting, es.status
+         FROM employee_skills es
+         JOIN squad_members sm ON sm.user_id = es.user_id
+         JOIN squads s ON s.id = sm.squad_id
+         WHERE s.manager_id = $1`,
+        [req.user.id]
+      ));
+    } else {
+      ({ rows: employeeRows } = await db.query(
+        `SELECT id, first_name || ' ' || last_name AS name FROM users
+         WHERE role = 'employee' AND is_active = true ORDER BY name`
+      ));
+      ({ rows: matrixRows } = await db.query(
+        `SELECT user_id, skill_id, weighting, status FROM employee_skills`
+      ));
+    }
+
+    ({ rows: skillRows } = await db.query(
+      `SELECT sc.id, sc.name, cat.name AS category_name
+       FROM skills_catalogue sc
+       LEFT JOIN skill_categories cat ON cat.id = sc.category_id
+       WHERE sc.is_active = true ORDER BY cat.name, sc.name`
+    ));
+
+    // Build lookup: { userId_skillId: { weighting, status } }
+    const matrix = {};
+    for (const r of matrixRows) {
+      matrix[`${r.user_id}_${r.skill_id}`] = { weighting: r.weighting, status: r.status };
+    }
+
+    res.json({ employees: employeeRows, skills: skillRows, matrix });
   } catch (err) { next(err); }
 };
 

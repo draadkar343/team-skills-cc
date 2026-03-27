@@ -97,3 +97,73 @@ exports.resetPassword = async (req, res, next) => {
     res.json({ message: 'Password reset' });
   } catch (err) { next(err); }
 };
+
+// ── BULK IMPORT ────────────────────────────────────────────────────────────
+
+function parseCsv(buffer) {
+  const lines = buffer.toString('utf8').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const rows = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const fields = [];
+    let cur = '', inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuote = !inQuote;
+      } else if (ch === ',' && !inQuote) { fields.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    fields.push(cur.trim());
+    rows.push(fields);
+  }
+  return rows;
+}
+
+// POST /users/bulk-import  CSV: first_name, last_name, email, password, role (optional)
+exports.bulkImport = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' });
+    const rows = parseCsv(req.file.buffer);
+    if (!rows.length) return res.status(400).json({ error: 'CSV is empty' });
+
+    const headers = rows[0].map(h => h.toLowerCase());
+    const isHeader = headers.includes('first_name') || headers.includes('email');
+    const dataRows = isHeader ? rows.slice(1) : rows;
+
+    let inserted = 0, skipped = 0;
+    const errors = [];
+
+    for (let i = 0; i < dataRows.length; i++) {
+      const [firstName, lastName, emailVal, password] = dataRows[i];
+      const rowNum = i + (isHeader ? 2 : 1);
+
+      if (!firstName || !lastName || !emailVal || !password) {
+        errors.push(`Row ${rowNum}: first_name, last_name, email and password are required`);
+        continue;
+      }
+      if (password.length < 8) {
+        errors.push(`Row ${rowNum}: password must be at least 8 characters`);
+        continue;
+      }
+
+      try {
+        const hash = await hashPassword(password);
+        const { rows: created } = await db.query(
+          `INSERT INTO users (email, password_hash, first_name, last_name, role)
+           VALUES ($1, $2, $3, $4, 'employee') RETURNING id, email, first_name`,
+          [emailVal.toLowerCase(), hash, firstName, lastName]
+        );
+        email.sendWelcome(created[0].email, created[0].first_name, password);
+        inserted++;
+      } catch (err) {
+        if (err.code === '23505') { skipped++; }
+        else errors.push(`Row ${rowNum}: ${err.message}`);
+      }
+    }
+
+    res.json({ inserted, skipped, errors });
+  } catch (err) { next(err); }
+};

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { listUsers, createUser, updateUser, deleteUser, resetUserPassword } from '../../api/adminApi';
+import { listUsers, createUser, updateUser, deleteUser, resetUserPassword, bulkImportUsers } from '../../api/adminApi';
 import { getJobRoles } from '../../api/jobRoleApi';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
@@ -16,6 +16,10 @@ export default function UserManagement() {
   const [newPw, setNewPw] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [bulkModal, setBulkModal] = useState(false);
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkResult, setBulkResult] = useState(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const load = () => Promise.all([listUsers(), getJobRoles()]).then(([u, jr]) => { setUsers(u); setJobRoles(jr); }).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -71,13 +75,38 @@ export default function UserManagement() {
     } finally { setLoading(false); }
   };
 
+  const downloadBulkTemplate = () => {
+    const csv = 'first_name,last_name,email,password\nJohn,Smith,john.smith@company.com,SecurePass1!\n';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'users_import_template.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkImport = async () => {
+    if (!bulkFile) return;
+    setBulkLoading(true);
+    setBulkResult(null);
+    try {
+      const result = await bulkImportUsers(bulkFile);
+      setBulkResult(result);
+      await load();
+    } catch (err) {
+      setBulkResult({ errors: [err.response?.data?.error || 'Import failed'] });
+    } finally { setBulkLoading(false); }
+  };
+
   const roleBadge = { employee: 'bg-gray-100 text-gray-600', manager: 'bg-blue-100 text-blue-700', administrator: 'bg-purple-100 text-purple-700' };
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">User Management</h1>
-        <Button onClick={openCreate}>+ New User</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => { setBulkModal(true); setBulkFile(null); setBulkResult(null); }}>Import CSV</Button>
+          <Button onClick={openCreate}>+ New User</Button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -200,6 +229,45 @@ export default function UserManagement() {
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
             <Button loading={loading} onClick={handleReset}>Reset Password</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bulk Import Modal */}
+      <Modal open={bulkModal} onClose={() => setBulkModal(false)} title="Bulk Import Users via CSV">
+        <div className="space-y-4">
+          <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500 space-y-1">
+            <p className="font-medium text-gray-700">Required columns:</p>
+            <p><code>first_name, last_name, email, password</code></p>
+            <p>All users are created with the Employee role. Passwords must be at least 8 characters. Duplicate emails are skipped.</p>
+          </div>
+          <button onClick={downloadBulkTemplate} className="text-xs text-blue-600 hover:underline">
+            Download template CSV
+          </button>
+          <div>
+            <label className="block text-sm font-medium mb-1">Select CSV File</label>
+            <input type="file" accept=".csv,text/csv" className="text-sm text-gray-600"
+              onChange={e => { setBulkFile(e.target.files[0] || null); setBulkResult(null); }} />
+          </div>
+          {bulkResult && (
+            <div className="rounded-lg border p-3 space-y-2 text-sm">
+              <div className="flex gap-4">
+                <span className="text-green-600 font-medium">{bulkResult.inserted ?? 0} created</span>
+                <span className="text-yellow-600 font-medium">{bulkResult.skipped ?? 0} skipped (duplicates)</span>
+              </div>
+              {bulkResult.errors?.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-red-600 font-medium mb-1">{bulkResult.errors.length} error(s):</p>
+                  <ul className="text-red-500 text-xs space-y-0.5 max-h-32 overflow-y-auto">
+                    {bulkResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" onClick={() => setBulkModal(false)}>Close</Button>
+            <Button onClick={handleBulkImport} loading={bulkLoading} disabled={!bulkFile}>Import</Button>
           </div>
         </div>
       </Modal>

@@ -1,9 +1,10 @@
 const db = require('../config/db');
 const email = require('../services/emailService');
+const { createNotification } = require('../services/notificationService');
 
 async function getManagerForUser(userId) {
   const { rows } = await db.query(
-    `SELECT u.email, u.first_name, u.last_name
+    `SELECT u.id, u.email, u.first_name, u.last_name
      FROM users u
      JOIN squads s ON s.manager_id = u.id
      JOIN squad_members sm ON sm.squad_id = s.id
@@ -129,6 +130,8 @@ exports.submitTimesheet = async (req, res, next) => {
         String(existing[0].week_start_date).slice(0, 10),
         existing[0].total_hours
       );
+      createNotification(manager.id, 'timesheet_submitted', 'Timesheet Pending Approval',
+        `${emp[0].first_name} ${emp[0].last_name} submitted a timesheet for week ${String(existing[0].week_start_date).slice(0, 10)} (${existing[0].total_hours}h).`);
     }
     res.json(rows[0]);
   } catch (err) { next(err); }
@@ -245,12 +248,15 @@ exports.approveTimesheet = async (req, res, next) => {
     );
     if (detail[0]) {
       const mgr = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]);
+      const mgrName = `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`;
       email.sendTimesheetApproved(
         detail[0].email,
         detail[0].first_name,
         String(detail[0].week_start_date).slice(0, 10),
-        `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`
+        mgrName
       );
+      createNotification(rows[0].user_id, 'timesheet_approved', 'Timesheet Approved',
+        `Your timesheet for week ${String(detail[0].week_start_date).slice(0, 10)} was approved by ${mgrName}.`);
     }
     res.json(rows[0]);
   } catch (err) { next(err); }
@@ -285,13 +291,16 @@ exports.rejectTimesheet = async (req, res, next) => {
     );
     if (detail[0]) {
       const mgr = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [req.user.id]);
+      const mgrName = `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`;
       email.sendTimesheetRejected(
         detail[0].email,
         detail[0].first_name,
         String(detail[0].week_start_date).slice(0, 10),
-        `${mgr.rows[0].first_name} ${mgr.rows[0].last_name}`,
+        mgrName,
         reason
       );
+      createNotification(rows[0].user_id, 'timesheet_rejected', 'Timesheet Rejected',
+        `Your timesheet for week ${String(detail[0].week_start_date).slice(0, 10)} was rejected by ${mgrName}. Reason: ${reason}`);
     }
     res.json(rows[0]);
   } catch (err) { next(err); }
@@ -344,6 +353,38 @@ exports.getAllTimesheets = async (_req, res, next) => {
        JOIN users u ON u.id = t.user_id
        ORDER BY t.week_start_date DESC, u.last_name`
     );
+    res.json(rows);
+  } catch (err) { next(err); }
+};
+
+// ── WORKLOAD ───────────────────────────────────────────────────────────────
+
+// GET /timesheets/workload — manager sees squad; admin sees all employees
+exports.getWorkload = async (req, res, next) => {
+  try {
+    let rows;
+    if (req.user.role === 'manager') {
+      ({ rows } = await db.query(
+        `SELECT u.id AS user_id, u.first_name || ' ' || u.last_name AS user_name,
+                t.week_start_date, t.total_hours, t.status
+         FROM timesheets t
+         JOIN users u ON u.id = t.user_id
+         JOIN squad_members sm ON sm.user_id = u.id
+         JOIN squads s ON s.id = sm.squad_id
+         WHERE s.manager_id = $1
+         ORDER BY t.week_start_date DESC, u.last_name`,
+        [req.user.id]
+      ));
+    } else {
+      ({ rows } = await db.query(
+        `SELECT u.id AS user_id, u.first_name || ' ' || u.last_name AS user_name,
+                t.week_start_date, t.total_hours, t.status
+         FROM timesheets t
+         JOIN users u ON u.id = t.user_id
+         WHERE u.is_active = true
+         ORDER BY t.week_start_date DESC, u.last_name`
+      ));
+    }
     res.json(rows);
   } catch (err) { next(err); }
 };
