@@ -20,3 +20,15 @@ export const getClientSystems  = (clientId) => api.get(`/clients/${clientId}/sys
 export const addClientSystem    = (clientId, data) => api.post(`/clients/${clientId}/systems`, data).then(r => r.data);
 export const updateClientSystem = (id, data) => api.patch(`/clients/systems/${id}`, data).then(r => r.data);
 export const deleteClientSystem = (id) => api.delete(`/clients/systems/${id}`).then(r => r.data);
+
+// Roadmap
+export const getClientRoadmap   = (clientId) => api.get(`/clients/${clientId}/roadmap`).then(r => r.data);
+export const addRoadmapItem     = (clientId, data) => api.post(`/clients/${clientId}/roadmap`, data).then(r => r.data);
+export const updateRoadmapItem  = (id, data) => api.patch(`/clients/roadmap/${id}`, data).then(r => r.data);
+export const deleteRoadmapItem  = (id) => api.delete(`/clients/roadmap/${id}`).then(r => r.data);
+
+// Contracts
+export const getClientContracts = (clientId) => api.get(`/clients/${clientId}/contracts`).then(r => r.data);
+export const addContract        = (clientId, data) => api.post(`/clients/${clientId}/contracts`, data).then(r => r.data);
+export const updateContract     = (id, data) => api.patch(`/clients/contracts/${id}`, data).then(r => r.data);
+export const deleteContract     = (id) => api.delete(`/clients/contracts/${id}`).then(r => r.data);

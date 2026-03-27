@@ -44,6 +44,7 @@ import MainSkillsView from './pages/manager/MainSkillsView';
 import SkillsHeatmap from './pages/shared/SkillsHeatmap';
 import WorkloadView from './pages/shared/WorkloadView';
 import ClientPlanning from './pages/manager/ClientPlanning';
+import ClientsPage from './pages/ClientsPage';
 import UserManagement from './pages/admin/UserManagement';
 import AdminSquadManagement from './pages/admin/SquadManagement';
 import AllSkillsView from './pages/admin/AllSkillsView';
@@ -186,6 +187,13 @@ export default function App() {
       <Route path="/client-planning" element={
         <ProtectedRoute allowedRoles={['manager', 'administrator']}>
           <AppLayout><ClientPlanning /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Clients — detailed client view */}
+      <Route path="/clients" element={
+        <ProtectedRoute allowedRoles={['manager', 'administrator', 'resourcing']}>
+          <AppLayout><ClientsPage /></AppLayout>
         </ProtectedRoute>
       } />
 

@@ -321,6 +321,46 @@ db.query(`ALTER TABLE timesheet_entries ADD COLUMN IF NOT EXISTS wbs_element VAR
 db.query(`ALTER TABLE timesheet_entries ADD COLUMN IF NOT EXISTS client_name VARCHAR(150)`)
   .catch(err => console.error('[startup] Failed to add client_name column:', err.message));
 
+// Client roadmap items
+db.query(`
+  CREATE TABLE IF NOT EXISTS client_roadmap_items (
+    id          SERIAL PRIMARY KEY,
+    client_id   INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    title       VARCHAR(255) NOT NULL,
+    description TEXT,
+    target_date DATE,
+    status      VARCHAR(30) NOT NULL DEFAULT 'planned'
+                  CHECK (status IN ('planned','in_progress','completed','cancelled')),
+    priority    VARCHAR(20) NOT NULL DEFAULT 'medium'
+                  CHECK (priority IN ('low','medium','high')),
+    created_by  INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create client_roadmap_items:', err.message));
+
+// Client contracts
+db.query(`
+  CREATE TABLE IF NOT EXISTS client_contracts (
+    id              SERIAL PRIMARY KEY,
+    client_id       INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    title           VARCHAR(255) NOT NULL,
+    contract_number VARCHAR(100),
+    type            VARCHAR(50) CHECK (type IN ('fixed_price','time_material','retainer','sla','other')),
+    start_date      DATE,
+    end_date        DATE,
+    value           NUMERIC(15,2),
+    currency        CHAR(3) NOT NULL DEFAULT 'USD',
+    status          VARCHAR(30) NOT NULL DEFAULT 'active'
+                      CHECK (status IN ('draft','active','expired','terminated')),
+    description     TEXT,
+    notes           TEXT,
+    created_by      INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create client_contracts:', err.message));
+
 app.use(helmet());
 app.use(cors());
 app.use(express.json());

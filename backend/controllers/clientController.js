@@ -377,3 +377,152 @@ exports.deleteClientSystem = async (req, res, next) => {
     res.json({ message: 'System removed' });
   } catch (err) { next(err); }
 };
+
+// ── ROADMAP ─────────────────────────────────────────────────────────────────
+
+// GET /clients/:id/roadmap
+exports.getRoadmapItems = async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT ri.*, u.first_name || ' ' || u.last_name AS created_by_name
+       FROM client_roadmap_items ri
+       LEFT JOIN users u ON u.id = ri.created_by
+       WHERE ri.client_id = $1
+       ORDER BY ri.target_date NULLS LAST, ri.created_at`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { next(err); }
+};
+
+// POST /clients/:id/roadmap
+exports.addRoadmapItem = async (req, res, next) => {
+  try {
+    const { title, description, targetDate, status, priority } = req.body;
+    if (!title) return res.status(400).json({ error: 'title required' });
+    if (!await canManageClient(req, req.params.id)) return res.status(403).json({ error: 'Access denied' });
+    const { rows } = await db.query(
+      `INSERT INTO client_roadmap_items (client_id, title, description, target_date, status, priority, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [req.params.id, title, description || null, targetDate || null, status || 'planned', priority || 'medium', req.user.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { next(err); }
+};
+
+// PATCH /clients/roadmap/:id
+exports.updateRoadmapItem = async (req, res, next) => {
+  try {
+    const { title, description, targetDate, status, priority } = req.body;
+    const { rows: item } = await db.query(
+      'SELECT client_id FROM client_roadmap_items WHERE id = $1', [req.params.id]
+    );
+    if (!item.length) return res.status(404).json({ error: 'Roadmap item not found' });
+    if (!await canManageClient(req, item[0].client_id)) return res.status(403).json({ error: 'Access denied' });
+    const { rows } = await db.query(
+      `UPDATE client_roadmap_items SET
+        title       = COALESCE($1, title),
+        description = COALESCE($2, description),
+        target_date = CASE WHEN $3::boolean THEN $4::date ELSE target_date END,
+        status      = COALESCE($5, status),
+        priority    = COALESCE($6, priority),
+        updated_at  = NOW()
+       WHERE id = $7 RETURNING *`,
+      [title, description, targetDate !== undefined, targetDate || null, status, priority, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { next(err); }
+};
+
+// DELETE /clients/roadmap/:id
+exports.deleteRoadmapItem = async (req, res, next) => {
+  try {
+    const { rows: item } = await db.query(
+      'SELECT client_id FROM client_roadmap_items WHERE id = $1', [req.params.id]
+    );
+    if (!item.length) return res.status(404).json({ error: 'Roadmap item not found' });
+    if (!await canManageClient(req, item[0].client_id)) return res.status(403).json({ error: 'Access denied' });
+    await db.query('DELETE FROM client_roadmap_items WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Roadmap item deleted' });
+  } catch (err) { next(err); }
+};
+
+// ── CONTRACTS ───────────────────────────────────────────────────────────────
+
+// GET /clients/:id/contracts
+exports.getContracts = async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT cc.*, u.first_name || ' ' || u.last_name AS created_by_name
+       FROM client_contracts cc
+       LEFT JOIN users u ON u.id = cc.created_by
+       WHERE cc.client_id = $1
+       ORDER BY cc.start_date DESC NULLS LAST, cc.created_at DESC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { next(err); }
+};
+
+// POST /clients/:id/contracts
+exports.addContract = async (req, res, next) => {
+  try {
+    const { title, contractNumber, type, startDate, endDate, value, currency, status, description, notes } = req.body;
+    if (!title) return res.status(400).json({ error: 'title required' });
+    if (!await canManageClient(req, req.params.id)) return res.status(403).json({ error: 'Access denied' });
+    const { rows } = await db.query(
+      `INSERT INTO client_contracts
+         (client_id, title, contract_number, type, start_date, end_date, value, currency, status, description, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [req.params.id, title, contractNumber || null, type || null,
+       startDate || null, endDate || null, value || null,
+       currency || 'USD', status || 'active', description || null, notes || null, req.user.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { next(err); }
+};
+
+// PATCH /clients/contracts/:id
+exports.updateContract = async (req, res, next) => {
+  try {
+    const { title, contractNumber, type, startDate, endDate, value, currency, status, description, notes } = req.body;
+    const { rows: contract } = await db.query(
+      'SELECT client_id FROM client_contracts WHERE id = $1', [req.params.id]
+    );
+    if (!contract.length) return res.status(404).json({ error: 'Contract not found' });
+    if (!await canManageClient(req, contract[0].client_id)) return res.status(403).json({ error: 'Access denied' });
+    const { rows } = await db.query(
+      `UPDATE client_contracts SET
+        title           = COALESCE($1, title),
+        contract_number = COALESCE($2, contract_number),
+        type            = COALESCE($3, type),
+        start_date      = CASE WHEN $4::boolean THEN $5::date ELSE start_date END,
+        end_date        = CASE WHEN $6::boolean THEN $7::date ELSE end_date END,
+        value           = COALESCE($8, value),
+        currency        = COALESCE($9, currency),
+        status          = COALESCE($10, status),
+        description     = COALESCE($11, description),
+        notes           = COALESCE($12, notes),
+        updated_at      = NOW()
+       WHERE id = $13 RETURNING *`,
+      [title, contractNumber, type,
+       startDate !== undefined, startDate || null,
+       endDate !== undefined, endDate || null,
+       value, currency, status, description, notes, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { next(err); }
+};
+
+// DELETE /clients/contracts/:id
+exports.deleteContract = async (req, res, next) => {
+  try {
+    const { rows: contract } = await db.query(
+      'SELECT client_id FROM client_contracts WHERE id = $1', [req.params.id]
+    );
+    if (!contract.length) return res.status(404).json({ error: 'Contract not found' });
+    if (!await canManageClient(req, contract[0].client_id)) return res.status(403).json({ error: 'Access denied' });
+    await db.query('DELETE FROM client_contracts WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Contract deleted' });
+  } catch (err) { next(err); }
+};

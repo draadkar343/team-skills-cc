@@ -24,4 +24,16 @@ router.post('/:id/systems', auth, role('manager', 'administrator'), c.addClientS
 router.patch('/systems/:id', auth, role('manager', 'administrator'), c.updateClientSystem);
 router.delete('/systems/:id', auth, role('manager', 'administrator'), c.deleteClientSystem);
 
+// Roadmap
+router.get('/:id/roadmap', auth, role('manager', 'administrator', 'resourcing'), c.getRoadmapItems);
+router.post('/:id/roadmap', auth, role('manager', 'administrator'), c.addRoadmapItem);
+router.patch('/roadmap/:id', auth, role('manager', 'administrator'), c.updateRoadmapItem);
+router.delete('/roadmap/:id', auth, role('manager', 'administrator'), c.deleteRoadmapItem);
+
+// Contracts
+router.get('/:id/contracts', auth, role('manager', 'administrator', 'resourcing'), c.getContracts);
+router.post('/:id/contracts', auth, role('manager', 'administrator'), c.addContract);
+router.patch('/contracts/:id', auth, role('manager', 'administrator'), c.updateContract);
+router.delete('/contracts/:id', auth, role('manager', 'administrator'), c.deleteContract);
+
 module.exports = router;

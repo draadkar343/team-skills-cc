@@ -37,6 +37,7 @@ export default function Sidebar() {
           <NavLink to="/team-calendar" className={linkClass}>Team Calendar</NavLink>
           <NavLink to="/squad" className={linkClass}>My Squad</NavLink>
           <NavLink to="/manager/main-skills" className={linkClass}>Main Skills</NavLink>
+          <NavLink to="/clients" className={linkClass}>Clients</NavLink>
           <NavLink to="/client-planning" className={linkClass}>Client Planning</NavLink>
           <NavLink to="/skills-heatmap" className={linkClass}>Skills Heatmap</NavLink>
           <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
@@ -59,6 +60,7 @@ export default function Sidebar() {
       {user?.role === 'resourcing' && (
         <>
           <NavLink to="/resourcing-dashboard" className={linkClass}>Dashboard</NavLink>
+          <NavLink to="/clients" className={linkClass}>Clients</NavLink>
           <NavLink to="/resourcing" className={linkClass}>Resourcing Overview</NavLink>
           <NavLink to="/talent-pipeline" className={linkClass}>Talent Pipeline</NavLink>
           <NavLink to="/my-leave" className={linkClass}>My Leave</NavLink>
@@ -78,6 +80,7 @@ export default function Sidebar() {
           <NavLink to="/admin/all-skills" className={linkClass}>All Employee Skills</NavLink>
           <NavLink to="/admin/all-timesheets" className={linkClass}>All Timesheets</NavLink>
           <NavLink to="/admin/certifications" className={linkClass}>Certifications</NavLink>
+          <NavLink to="/clients" className={linkClass}>Clients</NavLink>
           <NavLink to="/client-planning" className={linkClass}>Client Planning</NavLink>
           <NavLink to="/skills-heatmap" className={linkClass}>Skills Heatmap</NavLink>
           <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
