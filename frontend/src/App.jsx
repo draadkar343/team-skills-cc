@@ -33,6 +33,7 @@ import AuditLog from './pages/admin/AuditLog';
 import MainSkillsView from './pages/manager/MainSkillsView';
 import SkillsHeatmap from './pages/shared/SkillsHeatmap';
 import WorkloadView from './pages/shared/WorkloadView';
+import ClientPlanning from './pages/manager/ClientPlanning';
 import UserManagement from './pages/admin/UserManagement';
 import AdminSquadManagement from './pages/admin/SquadManagement';
 import AllSkillsView from './pages/admin/AllSkillsView';
@@ -138,6 +139,13 @@ export default function App() {
       <Route path="/squad" element={
         <ProtectedRoute allowedRoles={['manager']}>
           <AppLayout><SquadManagement /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Manager — client planning */}
+      <Route path="/client-planning" element={
+        <ProtectedRoute allowedRoles={['manager', 'administrator']}>
+          <AppLayout><ClientPlanning /></AppLayout>
         </ProtectedRoute>
       } />
 

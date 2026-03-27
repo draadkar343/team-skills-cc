@@ -18,6 +18,7 @@ const integrationsRoutes = require('./routes/integrationsRoutes');
 const publicApiRoutes = require('./routes/publicApiRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const clientRoutes = require('./routes/clientRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 const { scheduleBirthdayJob } = require('./services/birthdayJob');
@@ -147,6 +148,37 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create audit_retention_policies:', err.message));
 
+// Create clients and client_allocations tables if they don't exist
+db.query(`
+  CREATE TABLE IF NOT EXISTS clients (
+    id            SERIAL PRIMARY KEY,
+    name          VARCHAR(255) NOT NULL,
+    description   TEXT,
+    contact_name  VARCHAR(255),
+    contact_email VARCHAR(255),
+    is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by    INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create clients:', err.message));
+
+db.query(`
+  CREATE TABLE IF NOT EXISTS client_allocations (
+    id           SERIAL PRIMARY KEY,
+    client_id    INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    percentage   SMALLINT NOT NULL CHECK (percentage > 0 AND percentage <= 100),
+    start_date   DATE,
+    end_date     DATE,
+    notes        TEXT,
+    created_by   INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (client_id, user_id)
+  )
+`).catch(err => console.error('[startup] Failed to create client_allocations:', err.message));
+
 // Create notifications table if it doesn't exist
 db.query(`
   CREATE TABLE IF NOT EXISTS notifications (
@@ -195,6 +227,7 @@ app.use('/api/v1/integrations', integrationsRoutes);
 app.use('/api/v1/public', publicApiRoutes);
 app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/clients', clientRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 
