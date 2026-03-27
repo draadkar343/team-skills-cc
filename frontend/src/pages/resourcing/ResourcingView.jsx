@@ -169,7 +169,16 @@ export default function ResourcingView() {
                             : <div className="space-y-2">
                                 {e.allocations.map((a, i) => (
                                   <div key={i} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2">
-                                    <span className="text-sm font-medium">{a.clientName}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium">{a.clientName}</span>
+                                      {a.grade && (
+                                        <span className={`text-xs font-bold border rounded px-1.5 py-0.5 ${
+                                          a.grade === 'A' ? 'bg-green-100 text-green-700 border-green-300' :
+                                          a.grade === 'B' ? 'bg-blue-100 text-blue-700 border-blue-300' :
+                                                           'bg-amber-100 text-amber-700 border-amber-300'
+                                        }`}>{a.grade}</span>
+                                      )}
+                                    </div>
                                     <div className="flex items-center gap-3 text-xs text-gray-500">
                                       {(a.startDate || a.endDate) && (
                                         <span>{a.startDate?.slice(0, 10) || '?'} → {a.endDate?.slice(0, 10) || 'ongoing'}</span>

@@ -35,7 +35,7 @@ exports.getOverview = async (req, res, next) => {
 
     // Allocations per employee
     const { rows: allocRows } = await db.query(
-      `SELECT ca.user_id, c.name AS client_name, ca.percentage, ca.start_date, ca.end_date
+      `SELECT ca.user_id, c.name AS client_name, ca.percentage, ca.grade, ca.start_date, ca.end_date
        FROM client_allocations ca
        JOIN clients c ON c.id = ca.client_id
        WHERE c.is_active = true
@@ -57,6 +57,7 @@ exports.getOverview = async (req, res, next) => {
       allocsByUser[r.user_id].push({
         clientName: r.client_name,
         percentage: r.percentage,
+        grade: r.grade || null,
         startDate: r.start_date,
         endDate: r.end_date,
       });

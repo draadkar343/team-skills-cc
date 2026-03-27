@@ -186,12 +186,15 @@ exports.getSquadOverview = async (req, res, next) => {
 // POST /clients/:id/allocations
 exports.addAllocation = async (req, res, next) => {
   try {
-    const { userId, percentage, startDate, endDate, notes } = req.body;
+    const { userId, percentage, startDate, endDate, notes, grade } = req.body;
     if (!userId || percentage === undefined) {
       return res.status(400).json({ error: 'userId and percentage are required' });
     }
     if (percentage <= 0 || percentage > 100) {
       return res.status(400).json({ error: 'Percentage must be between 1 and 100' });
+    }
+    if (grade && !['A', 'B', 'C'].includes(grade)) {
+      return res.status(400).json({ error: 'Grade must be A, B, or C' });
     }
 
     // Managers can only allocate their own squad members
@@ -200,9 +203,9 @@ exports.addAllocation = async (req, res, next) => {
     }
 
     const { rows } = await db.query(
-      `INSERT INTO client_allocations (client_id, user_id, percentage, start_date, end_date, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [req.params.id, userId, percentage, startDate || null, endDate || null, notes || null, req.user.id]
+      `INSERT INTO client_allocations (client_id, user_id, percentage, start_date, end_date, notes, grade, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [req.params.id, userId, percentage, startDate || null, endDate || null, notes || null, grade || null, req.user.id]
     );
     const { rows: detail } = await db.query(
       'SELECT first_name, last_name, email FROM users WHERE id = $1',
@@ -218,9 +221,12 @@ exports.addAllocation = async (req, res, next) => {
 // PATCH /allocations/:id
 exports.updateAllocation = async (req, res, next) => {
   try {
-    const { percentage, startDate, endDate, notes } = req.body;
+    const { percentage, startDate, endDate, notes, grade } = req.body;
     if (percentage !== undefined && (percentage <= 0 || percentage > 100)) {
       return res.status(400).json({ error: 'Percentage must be between 1 and 100' });
+    }
+    if (grade !== undefined && grade !== null && !['A', 'B', 'C'].includes(grade)) {
+      return res.status(400).json({ error: 'Grade must be A, B, or C' });
     }
 
     // Verify manager owns this allocation (via squad) or is admin
@@ -241,10 +247,12 @@ exports.updateAllocation = async (req, res, next) => {
         start_date = CASE WHEN $2::boolean THEN $3::date ELSE start_date END,
         end_date   = CASE WHEN $4::boolean THEN $5::date ELSE end_date END,
         notes      = COALESCE($6, notes),
+        grade      = CASE WHEN $8::boolean THEN $9::char ELSE grade END,
         updated_at = NOW()
        WHERE id = $7 RETURNING *`,
       [percentage, startDate !== undefined, startDate || null,
-       endDate !== undefined, endDate || null, notes, req.params.id]
+       endDate !== undefined, endDate || null, notes, req.params.id,
+       grade !== undefined, grade || null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Allocation not found' });
     res.json(rows[0]);

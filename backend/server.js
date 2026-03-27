@@ -234,6 +234,11 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create talent_candidates:', err.message));
 
+// Add grade column to client_allocations (A/B/C seniority grade)
+db.query(`
+  ALTER TABLE client_allocations ADD COLUMN IF NOT EXISTS grade CHAR(1) CHECK (grade IN ('A','B','C'))
+`).catch(err => console.error('[startup] Failed to add grade column:', err.message));
+
 // Kudos / Recognition
 db.query(`
   CREATE TABLE IF NOT EXISTS kudos (

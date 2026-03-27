@@ -9,6 +9,47 @@ import Modal from '../../components/common/Modal';
 
 const emptyClientForm = { name: '', description: '', contactName: '', contactEmail: '' };
 
+const GRADE_STYLES = {
+  A: 'bg-green-100 text-green-700 border-green-300',
+  B: 'bg-blue-100 text-blue-700 border-blue-300',
+  C: 'bg-amber-100 text-amber-700 border-amber-300',
+};
+
+function GradeBadge({ grade, size = 'sm' }) {
+  if (!grade) return null;
+  return (
+    <span className={`border font-bold rounded px-1.5 py-0.5 ${size === 'xs' ? 'text-[10px]' : 'text-xs'} ${GRADE_STYLES[grade]}`}>
+      {grade}
+    </span>
+  );
+}
+
+function GradePicker({ value, onChange }) {
+  return (
+    <div className="flex gap-2">
+      {['A', 'B', 'C'].map(g => (
+        <button
+          key={g}
+          type="button"
+          onClick={() => onChange(value === g ? '' : g)}
+          className={`w-10 h-10 rounded-lg border-2 font-bold text-sm transition-colors ${
+            value === g
+              ? `${GRADE_STYLES[g]} border-current`
+              : 'border-gray-200 text-gray-400 hover:border-gray-300'
+          }`}
+        >
+          {g}
+        </button>
+      ))}
+      {value && (
+        <button type="button" onClick={() => onChange('')} className="text-xs text-gray-400 hover:text-gray-600 ml-1 self-center">
+          Clear
+        </button>
+      )}
+    </div>
+  );
+}
+
 function AllocationBar({ total }) {
   const pct = Math.min(total, 100);
   const color = total > 100 ? 'bg-red-500' : total === 100 ? 'bg-green-500' : total >= 80 ? 'bg-yellow-400' : 'bg-blue-500';
@@ -39,9 +80,9 @@ export default function ClientPlanning() {
 
   // Allocation modal
   const [allocModal, setAllocModal] = useState(false);
-  const [allocForm, setAllocForm] = useState({ userId: '', percentage: '', startDate: '', endDate: '', notes: '' });
+  const [allocForm, setAllocForm] = useState({ userId: '', percentage: '', grade: '', startDate: '', endDate: '', notes: '' });
   const [editAllocModal, setEditAllocModal] = useState(null);
-  const [editAllocForm, setEditAllocForm] = useState({ percentage: '', startDate: '', endDate: '', notes: '' });
+  const [editAllocForm, setEditAllocForm] = useState({ percentage: '', grade: '', startDate: '', endDate: '', notes: '' });
 
   // Squad members (from overview) for the allocation picker
   const squadMembers = overview.map(m => ({ id: m.id, name: m.name, email: m.email }));
@@ -113,12 +154,13 @@ export default function ClientPlanning() {
       await addAllocation(selectedClient.id, {
         userId: parseInt(allocForm.userId),
         percentage: parseInt(allocForm.percentage),
+        grade: allocForm.grade || undefined,
         startDate: allocForm.startDate || undefined,
         endDate: allocForm.endDate || undefined,
         notes: allocForm.notes || undefined,
       });
       setAllocModal(false);
-      setAllocForm({ userId: '', percentage: '', startDate: '', endDate: '', notes: '' });
+      setAllocForm({ userId: '', percentage: '', grade: '', startDate: '', endDate: '', notes: '' });
       await loadAllocations(selectedClient.id);
       await loadOverview();
     } catch (err) {
@@ -129,6 +171,7 @@ export default function ClientPlanning() {
   const openEditAlloc = (a) => {
     setEditAllocForm({
       percentage: a.percentage,
+      grade: a.grade || '',
       startDate: a.start_date?.slice(0, 10) || '',
       endDate: a.end_date?.slice(0, 10) || '',
       notes: a.notes || '',
@@ -142,6 +185,7 @@ export default function ClientPlanning() {
     try {
       await updateAllocation(editAllocModal.id, {
         percentage: parseInt(editAllocForm.percentage),
+        grade: editAllocForm.grade || null,
         startDate: editAllocForm.startDate || null,
         endDate: editAllocForm.endDate || null,
         notes: editAllocForm.notes || undefined,
@@ -247,8 +291,9 @@ export default function ClientPlanning() {
                       {allocations.map(a => (
                         <div key={a.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium text-sm text-gray-800">{a.first_name} {a.last_name}</span>
+                              {a.grade && <GradeBadge grade={a.grade} />}
                               <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">{a.percentage}%</span>
                             </div>
                             <div className="text-xs text-gray-400 mt-0.5">
@@ -306,8 +351,9 @@ export default function ClientPlanning() {
                   {member.allocations.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {member.allocations.map(a => (
-                        <span key={a.id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
+                        <span key={a.id} className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
                           {a.client_name}
+                          {a.grade && <GradeBadge grade={a.grade} size="xs" />}
                           <strong>{a.percentage}%</strong>
                         </span>
                       ))}
@@ -369,12 +415,18 @@ export default function ClientPlanning() {
               <p className="text-xs text-gray-400 mt-1">All team members are already allocated to this client.</p>
             )}
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Allocation % *</label>
-            <div className="flex items-center gap-2">
-              <input required type="number" min={1} max={100} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                value={allocForm.percentage} onChange={e => setAllocForm(f => ({ ...f, percentage: e.target.value }))} />
-              <span className="text-sm text-gray-500">%</span>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Allocation % *</label>
+              <div className="flex items-center gap-2">
+                <input required type="number" min={1} max={100} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  value={allocForm.percentage} onChange={e => setAllocForm(f => ({ ...f, percentage: e.target.value }))} />
+                <span className="text-sm text-gray-500">%</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Grade</label>
+              <GradePicker value={allocForm.grade} onChange={g => setAllocForm(f => ({ ...f, grade: g }))} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -405,12 +457,18 @@ export default function ClientPlanning() {
       <Modal open={!!editAllocModal} onClose={() => setEditAllocModal(null)}
         title={`Edit: ${editAllocModal?.first_name} ${editAllocModal?.last_name}`}>
         <form onSubmit={handleEditAlloc} className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium mb-1">Allocation % *</label>
-            <div className="flex items-center gap-2">
-              <input required type="number" min={1} max={100} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                value={editAllocForm.percentage} onChange={e => setEditAllocForm(f => ({ ...f, percentage: e.target.value }))} />
-              <span className="text-sm text-gray-500">%</span>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Allocation % *</label>
+              <div className="flex items-center gap-2">
+                <input required type="number" min={1} max={100} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  value={editAllocForm.percentage} onChange={e => setEditAllocForm(f => ({ ...f, percentage: e.target.value }))} />
+                <span className="text-sm text-gray-500">%</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Grade</label>
+              <GradePicker value={editAllocForm.grade} onChange={g => setEditAllocForm(f => ({ ...f, grade: g }))} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
