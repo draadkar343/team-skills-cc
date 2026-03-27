@@ -78,7 +78,7 @@ export default function Login() {
         )}
       </button>
       <div className="relative z-10 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-blue-700 dark:text-blue-400 mb-2 text-center">Skills Management</h1>
+        <h1 className="text-2xl font-bold text-blue-700 dark:text-blue-400 mb-2 text-center">Employee Portal</h1>
 
         {!showForgot ? (
           <>

@@ -30,7 +30,7 @@ export default function ResetPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-blue-700 mb-2 text-center">Skills Management</h1>
+        <h1 className="text-2xl font-bold text-blue-700 mb-2 text-center">Employee Portal</h1>
         <p className="text-sm text-gray-500 text-center mb-6">Set a new password</p>
 
         {!token ? (

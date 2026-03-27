@@ -27,7 +27,7 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
-  const [config, setConfig] = useState({ company_name: { value: 'Skills Management' }, company_logo: { value: null } });
+  const [config, setConfig] = useState({ company_name: { value: 'Employee Portal' }, company_logo: { value: null } });
 
   useEffect(() => {
     getConfig().then(setConfig).catch(() => {});
@@ -43,7 +43,7 @@ export default function Navbar() {
             <img src={config.company_logo.value} alt="Logo" className="h-9 w-auto rounded" />
           )}
           <span className="text-lg font-bold tracking-wide">
-            {config.company_name?.value || 'Skills Management'}
+            {config.company_name?.value || 'Employee Portal'}
           </span>
         </div>
         <div className="flex items-center gap-4 text-sm">
