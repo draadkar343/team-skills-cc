@@ -31,6 +31,8 @@ export default function Login() {
     try {
       const user = await login(form.email, form.password);
       if (user.role === 'administrator') navigate('/admin');
+      else if (user.role === 'resourcing') navigate('/resourcing');
+      else if (user.role === 'functional_manager') navigate('/skill-approvals');
       else navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
