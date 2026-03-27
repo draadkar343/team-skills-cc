@@ -18,4 +18,10 @@ router.post('/:id/allocations', auth, role('manager', 'administrator'), c.addAll
 router.patch('/allocations/:id', auth, role('manager', 'administrator'), c.updateAllocation);
 router.delete('/allocations/:id', auth, role('manager', 'administrator'), c.deleteAllocation);
 
+// Systems (version tracking)
+router.get('/:id/systems', auth, role('manager', 'administrator', 'resourcing'), c.getClientSystems);
+router.post('/:id/systems', auth, role('manager', 'administrator'), c.addClientSystem);
+router.patch('/systems/:id', auth, role('manager', 'administrator'), c.updateClientSystem);
+router.delete('/systems/:id', auth, role('manager', 'administrator'), c.deleteClientSystem);
+
 module.exports = router;

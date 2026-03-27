@@ -276,3 +276,104 @@ exports.deleteAllocation = async (req, res, next) => {
     res.json({ message: 'Allocation removed' });
   } catch (err) { next(err); }
 };
+
+// ── CLIENT SYSTEMS ──────────────────────────────────────────────────────────
+
+const VALID_ENVS     = ['production', 'staging', 'development', 'uat'];
+const VALID_STATUSES = ['active', 'deprecated', 'end_of_life'];
+
+// GET /clients/:id/systems
+exports.getClientSystems = async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT cs.*, u.first_name || ' ' || u.last_name AS created_by_name
+       FROM client_systems cs
+       JOIN users u ON u.id = cs.created_by
+       WHERE cs.client_id = $1
+       ORDER BY cs.name, cs.environment`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { next(err); }
+};
+
+// POST /clients/:id/systems
+exports.addClientSystem = async (req, res, next) => {
+  try {
+    const { name, version, vendor, environment, status, supportExpiry, description, notes } = req.body;
+    if (!name || !version) return res.status(400).json({ error: 'name and version are required' });
+    const env = environment || 'production';
+    const sts = status || 'active';
+    if (!VALID_ENVS.includes(env))     return res.status(400).json({ error: 'Invalid environment' });
+    if (!VALID_STATUSES.includes(sts)) return res.status(400).json({ error: 'Invalid status' });
+
+    if (!await canManageClient(req, req.params.id)) {
+      return res.status(403).json({ error: 'You can only add systems to clients you manage' });
+    }
+
+    const { rows } = await db.query(
+      `INSERT INTO client_systems
+         (client_id, name, version, vendor, environment, status, support_expiry, description, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [req.params.id, name, version, vendor || null, env, sts,
+       supportExpiry || null, description || null, notes || null, req.user.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { next(err); }
+};
+
+// PATCH /clients/systems/:id
+exports.updateClientSystem = async (req, res, next) => {
+  try {
+    const { name, version, vendor, environment, status, supportExpiry, description, notes } = req.body;
+    if (environment && !VALID_ENVS.includes(environment))   return res.status(400).json({ error: 'Invalid environment' });
+    if (status     && !VALID_STATUSES.includes(status))     return res.status(400).json({ error: 'Invalid status' });
+
+    // Verify user can manage this system's client
+    if (req.user.role !== 'administrator') {
+      const { rows: check } = await db.query(
+        `SELECT cs.id FROM client_systems cs
+         JOIN clients c ON c.id = cs.client_id
+         WHERE cs.id = $1 AND c.created_by = $2`,
+        [req.params.id, req.user.id]
+      );
+      if (!check.length) return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const { rows } = await db.query(
+      `UPDATE client_systems SET
+         name           = COALESCE($1, name),
+         version        = COALESCE($2, version),
+         vendor         = COALESCE($3, vendor),
+         environment    = COALESCE($4, environment),
+         status         = COALESCE($5, status),
+         support_expiry = CASE WHEN $6::boolean THEN $7::date ELSE support_expiry END,
+         description    = COALESCE($8, description),
+         notes          = COALESCE($9, notes),
+         updated_at     = NOW()
+       WHERE id = $10 RETURNING *`,
+      [name, version, vendor, environment, status,
+       supportExpiry !== undefined, supportExpiry || null,
+       description, notes, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'System not found' });
+    res.json(rows[0]);
+  } catch (err) { next(err); }
+};
+
+// DELETE /clients/systems/:id
+exports.deleteClientSystem = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'administrator') {
+      const { rows: check } = await db.query(
+        `SELECT cs.id FROM client_systems cs
+         JOIN clients c ON c.id = cs.client_id
+         WHERE cs.id = $1 AND c.created_by = $2`,
+        [req.params.id, req.user.id]
+      );
+      if (!check.length) return res.status(403).json({ error: 'Access denied' });
+    }
+    await db.query('DELETE FROM client_systems WHERE id = $1', [req.params.id]);
+    res.json({ message: 'System removed' });
+  } catch (err) { next(err); }
+};

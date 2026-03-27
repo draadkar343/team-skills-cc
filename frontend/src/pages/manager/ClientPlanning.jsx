@@ -3,11 +3,45 @@ import {
   listClients, createClient, updateClient, deleteClient,
   getClientAllocations, addAllocation, updateAllocation, deleteAllocation,
   getSquadOverview,
+  getClientSystems, addClientSystem, updateClientSystem, deleteClientSystem,
 } from '../../api/clientApi';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 
 const emptyClientForm = { name: '', description: '', contactName: '', contactEmail: '' };
+
+const ENVIRONMENTS = ['production', 'staging', 'development', 'uat'];
+const STATUSES     = ['active', 'deprecated', 'end_of_life'];
+
+const ENV_STYLES = {
+  production:  'bg-green-100 text-green-700',
+  staging:     'bg-blue-100 text-blue-700',
+  development: 'bg-purple-100 text-purple-700',
+  uat:         'bg-amber-100 text-amber-700',
+};
+const STATUS_STYLES = {
+  active:      'bg-green-100 text-green-700',
+  deprecated:  'bg-amber-100 text-amber-700',
+  end_of_life: 'bg-red-100 text-red-700',
+};
+
+function EnvBadge({ env }) {
+  return (
+    <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded ${ENV_STYLES[env] || 'bg-gray-100 text-gray-500'}`}>
+      {env}
+    </span>
+  );
+}
+function StatusBadge({ status }) {
+  const label = status === 'end_of_life' ? 'EOL' : status;
+  return (
+    <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}>
+      {label}
+    </span>
+  );
+}
+
+const emptySystemForm = { name: '', version: '', vendor: '', environment: 'production', status: 'active', supportExpiry: '', description: '', notes: '' };
 
 const GRADE_STYLES = {
   A: 'bg-green-100 text-green-700 border-green-300',
@@ -71,6 +105,7 @@ export default function ClientPlanning() {
   const [overview, setOverview] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [allocations, setAllocations] = useState([]);
+  const [clientTab, setClientTab] = useState('members'); // 'members' | 'systems'
   const [loading, setLoading] = useState(false);
 
   // Client modal
@@ -83,6 +118,11 @@ export default function ClientPlanning() {
   const [allocForm, setAllocForm] = useState({ userId: '', percentage: '', grade: '', startDate: '', endDate: '', notes: '' });
   const [editAllocModal, setEditAllocModal] = useState(null);
   const [editAllocForm, setEditAllocForm] = useState({ percentage: '', grade: '', startDate: '', endDate: '', notes: '' });
+
+  // Systems state
+  const [systems, setSystems] = useState([]);
+  const [systemModal, setSystemModal] = useState(null); // null | 'create' | System object for edit
+  const [systemForm, setSystemForm] = useState(emptySystemForm);
 
   // Squad members (from overview) for the allocation picker
   const squadMembers = overview.map(m => ({ id: m.id, name: m.name, email: m.email }));
@@ -100,9 +140,15 @@ export default function ClientPlanning() {
     setAllocations(data);
   };
 
+  const loadSystems = async (clientId) => {
+    const data = await getClientSystems(clientId);
+    setSystems(data);
+  };
+
   const selectClient = async (client) => {
     setSelectedClient(client);
-    await loadAllocations(client.id);
+    setClientTab('members');
+    await Promise.all([loadAllocations(client.id), loadSystems(client.id)]);
   };
 
   // ── Client CRUD ──────────────────────────────────────────────────────────
@@ -205,6 +251,49 @@ export default function ClientPlanning() {
     await loadOverview();
   };
 
+  // ── Systems CRUD ─────────────────────────────────────────────────────────
+
+  const openAddSystem = () => {
+    setSystemForm(emptySystemForm);
+    setSystemModal('create');
+  };
+
+  const openEditSystem = (s) => {
+    setSystemForm({
+      name: s.name, version: s.version, vendor: s.vendor || '',
+      environment: s.environment, status: s.status,
+      supportExpiry: s.support_expiry?.slice(0, 10) || '',
+      description: s.description || '', notes: s.notes || '',
+    });
+    setSystemModal(s);
+  };
+
+  const handleSaveSystem = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const payload = {
+        ...systemForm,
+        supportExpiry: systemForm.supportExpiry || null,
+      };
+      if (systemModal === 'create') {
+        await addClientSystem(selectedClient.id, payload);
+      } else {
+        await updateClientSystem(systemModal.id, payload);
+      }
+      setSystemModal(null);
+      await loadSystems(selectedClient.id);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to save system');
+    } finally { setLoading(false); }
+  };
+
+  const handleRemoveSystem = async (id) => {
+    if (!window.confirm('Remove this system record?')) return;
+    await deleteClientSystem(id);
+    await loadSystems(selectedClient.id);
+  };
+
   // Already-allocated user IDs for this client (to exclude from picker)
   const allocatedIds = new Set(allocations.map(a => a.user_id));
 
@@ -257,6 +346,7 @@ export default function ClientPlanning() {
               </div>
             ) : (
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                {/* Client header */}
                 <div className="flex items-start justify-between p-5 border-b border-gray-100">
                   <div>
                     <h2 className="font-semibold text-gray-800">{selectedClient.name}</h2>
@@ -276,47 +366,112 @@ export default function ClientPlanning() {
                   </div>
                 </div>
 
-                <div className="p-5">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-medium text-sm text-gray-700">Allocated Team Members</h3>
-                    <Button className="py-1 px-3 text-xs" onClick={() => { setAllocForm({ userId: '', percentage: '', startDate: '', endDate: '', notes: '' }); setAllocModal(true); }}>
-                      + Assign Member
-                    </Button>
-                  </div>
-
-                  {allocations.length === 0 ? (
-                    <p className="text-sm text-gray-400 py-6 text-center">No team members allocated to this client yet.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {allocations.map(a => (
-                        <div key={a.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm text-gray-800">{a.first_name} {a.last_name}</span>
-                              {a.grade && <GradeBadge grade={a.grade} />}
-                              <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">{a.percentage}%</span>
-                            </div>
-                            <div className="text-xs text-gray-400 mt-0.5">
-                              {a.email}
-                              {a.start_date && ` · From ${a.start_date.slice(0, 10)}`}
-                              {a.end_date && ` to ${a.end_date.slice(0, 10)}`}
-                            </div>
-                            {a.notes && <div className="text-xs text-gray-400 italic mt-0.5">{a.notes}</div>}
-                          </div>
-                          <div className="flex gap-1">
-                            <button onClick={() => openEditAlloc(a)}
-                              className="text-xs text-blue-600 hover:underline px-2">Edit</button>
-                            <button onClick={() => handleRemoveAlloc(a.id)}
-                              className="text-xs text-red-500 hover:underline px-2">Remove</button>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="text-xs text-gray-400 text-right pt-1">
-                        Total allocated: <strong>{allocations.reduce((s, a) => s + Number(a.percentage), 0)}%</strong> across {allocations.length} member{allocations.length !== 1 ? 's' : ''}
-                      </div>
-                    </div>
-                  )}
+                {/* Sub-tabs: Members | Systems */}
+                <div className="flex border-b border-gray-100 px-5">
+                  {[['members', 'Team Members'], ['systems', 'Systems']].map(([key, label]) => (
+                    <button key={key} onClick={() => setClientTab(key)}
+                      className={`mr-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                        clientTab === key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}>
+                      {label}
+                      <span className="ml-1.5 text-xs bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5">
+                        {key === 'members' ? allocations.length : systems.length}
+                      </span>
+                    </button>
+                  ))}
                 </div>
+
+                {/* Members panel */}
+                {clientTab === 'members' && (
+                  <div className="p-5">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-medium text-sm text-gray-700">Allocated Team Members</h3>
+                      <Button className="py-1 px-3 text-xs" onClick={() => { setAllocForm({ userId: '', percentage: '', startDate: '', endDate: '', notes: '' }); setAllocModal(true); }}>
+                        + Assign Member
+                      </Button>
+                    </div>
+
+                    {allocations.length === 0 ? (
+                      <p className="text-sm text-gray-400 py-6 text-center">No team members allocated to this client yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {allocations.map(a => (
+                          <div key={a.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-sm text-gray-800">{a.first_name} {a.last_name}</span>
+                                {a.grade && <GradeBadge grade={a.grade} />}
+                                <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">{a.percentage}%</span>
+                              </div>
+                              <div className="text-xs text-gray-400 mt-0.5">
+                                {a.email}
+                                {a.start_date && ` · From ${a.start_date.slice(0, 10)}`}
+                                {a.end_date && ` to ${a.end_date.slice(0, 10)}`}
+                              </div>
+                              {a.notes && <div className="text-xs text-gray-400 italic mt-0.5">{a.notes}</div>}
+                            </div>
+                            <div className="flex gap-1">
+                              <button onClick={() => openEditAlloc(a)}
+                                className="text-xs text-blue-600 hover:underline px-2">Edit</button>
+                              <button onClick={() => handleRemoveAlloc(a.id)}
+                                className="text-xs text-red-500 hover:underline px-2">Remove</button>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="text-xs text-gray-400 text-right pt-1">
+                          Total allocated: <strong>{allocations.reduce((s, a) => s + Number(a.percentage), 0)}%</strong> across {allocations.length} member{allocations.length !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Systems panel */}
+                {clientTab === 'systems' && (
+                  <div className="p-5">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-medium text-sm text-gray-700">System Versions</h3>
+                      <Button className="py-1 px-3 text-xs" onClick={openAddSystem}>+ Add System</Button>
+                    </div>
+
+                    {systems.length === 0 ? (
+                      <p className="text-sm text-gray-400 py-6 text-center">No systems tracked for this client yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {systems.map(s => (
+                          <div key={s.id} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-semibold text-sm text-gray-800">{s.name}</span>
+                                  <span className="font-mono text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">v{s.version}</span>
+                                  <EnvBadge env={s.environment} />
+                                  <StatusBadge status={s.status} />
+                                </div>
+                                {s.vendor && <div className="text-xs text-gray-400 mt-0.5">Vendor: {s.vendor}</div>}
+                                {s.description && <div className="text-xs text-gray-500 mt-1">{s.description}</div>}
+                                <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-400">
+                                  {s.support_expiry && (
+                                    <span className={new Date(s.support_expiry) < new Date() ? 'text-red-500 font-medium' : ''}>
+                                      Support expires: {s.support_expiry.slice(0, 10)}
+                                    </span>
+                                  )}
+                                  {s.notes && <span className="italic">{s.notes}</span>}
+                                </div>
+                              </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <button onClick={() => openEditSystem(s)}
+                                  className="text-xs text-blue-600 hover:underline px-2">Edit</button>
+                                <button onClick={() => handleRemoveSystem(s.id)}
+                                  className="text-xs text-red-500 hover:underline px-2">Remove</button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -449,6 +604,68 @@ export default function ClientPlanning() {
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="secondary" type="button" onClick={() => setAllocModal(false)}>Cancel</Button>
             <Button type="submit" loading={loading}>Assign</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── System Modal (Add / Edit) ── */}
+      <Modal open={!!systemModal} onClose={() => setSystemModal(null)}
+        title={systemModal === 'create' ? `Add System — ${selectedClient?.name}` : `Edit: ${systemModal?.name}`}>
+        <form onSubmit={handleSaveSystem} className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">System Name *</label>
+              <input required type="text" placeholder="e.g. SAP ERP"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={systemForm.name} onChange={e => setSystemForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Version *</label>
+              <input required type="text" placeholder="e.g. 8.2.1"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={systemForm.version} onChange={e => setSystemForm(f => ({ ...f, version: e.target.value }))} />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Vendor</label>
+            <input type="text" placeholder="e.g. SAP SE"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={systemForm.vendor} onChange={e => setSystemForm(f => ({ ...f, vendor: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Environment</label>
+              <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={systemForm.environment} onChange={e => setSystemForm(f => ({ ...f, environment: e.target.value }))}>
+                {ENVIRONMENTS.map(e => <option key={e} value={e}>{e.charAt(0).toUpperCase() + e.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Status</label>
+              <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={systemForm.status} onChange={e => setSystemForm(f => ({ ...f, status: e.target.value }))}>
+                {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Support Expiry Date</label>
+            <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={systemForm.supportExpiry} onChange={e => setSystemForm(f => ({ ...f, supportExpiry: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Description</label>
+            <textarea rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"
+              value={systemForm.description} onChange={e => setSystemForm(f => ({ ...f, description: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Notes</label>
+            <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={systemForm.notes} onChange={e => setSystemForm(f => ({ ...f, notes: e.target.value }))} />
+          </div>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button variant="secondary" type="button" onClick={() => setSystemModal(null)}>Cancel</Button>
+            <Button type="submit" loading={loading}>Save</Button>
           </div>
         </form>
       </Modal>

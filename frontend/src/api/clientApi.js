@@ -14,3 +14,9 @@ export const deleteAllocation = (id) => api.delete(`/clients/allocations/${id}`)
 
 // Squad overview
 export const getSquadOverview = () => api.get('/clients/squad-overview').then(r => r.data);
+
+// Systems
+export const getClientSystems  = (clientId) => api.get(`/clients/${clientId}/systems`).then(r => r.data);
+export const addClientSystem    = (clientId, data) => api.post(`/clients/${clientId}/systems`, data).then(r => r.data);
+export const updateClientSystem = (id, data) => api.patch(`/clients/systems/${id}`, data).then(r => r.data);
+export const deleteClientSystem = (id) => api.delete(`/clients/systems/${id}`).then(r => r.data);
