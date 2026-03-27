@@ -3,6 +3,19 @@ const { hashPassword } = require('../services/authService');
 const email = require('../services/emailService');
 const webhook = require('../services/webhookService');
 
+// Lightweight people list — all authenticated roles (for dropdowns like kudos)
+exports.getDirectory = async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, first_name, last_name
+       FROM users
+       WHERE is_active = true
+       ORDER BY last_name, first_name`
+    );
+    res.json(rows.map(u => ({ id: u.id, firstName: u.first_name, lastName: u.last_name })));
+  } catch (err) { next(err); }
+};
+
 exports.listUsers = async (req, res, next) => {
   try {
     const { rows } = await db.query(

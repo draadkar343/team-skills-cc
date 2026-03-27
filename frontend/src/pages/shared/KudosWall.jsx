@@ -73,8 +73,8 @@ export function GiveKudosModal({ open, onClose, onSent, excludeUserId }) {
 
   useEffect(() => {
     if (open) {
-      import('../../api/adminApi').then(m => m.listUsers()).then(list => {
-        setUsers(list.filter(u => u.isActive && u.id !== excludeUserId));
+      import('../../api/adminApi').then(m => m.getUserDirectory()).then(list => {
+        setUsers(list.filter(u => u.id !== excludeUserId));
       }).catch(() => {});
     }
   }, [open, excludeUserId]);

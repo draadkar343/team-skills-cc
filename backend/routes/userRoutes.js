@@ -4,6 +4,7 @@ const role = require('../middleware/roleGuard');
 const c = require('../controllers/userController');
 const { csvUpload } = require('../config/multer');
 
+router.get('/directory', auth, c.getDirectory);
 router.get('/', auth, role('administrator'), c.listUsers);
 router.post('/', auth, role('administrator', 'manager'), c.createUser);
 router.post('/bulk-import', auth, role('administrator'), csvUpload.single('file'), c.bulkImport);
