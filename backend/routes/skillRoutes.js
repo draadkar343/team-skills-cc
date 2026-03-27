@@ -20,7 +20,7 @@ router.get('/all', auth, role('administrator'), c.getAllSkills);
 router.get('/catalogue/all', auth, role('administrator'), c.getAllCatalogue);
 
 // Heatmap — manager (squad) or admin (all)
-router.get('/heatmap', auth, role('administrator', 'manager'), c.getSkillsHeatmap);
+router.get('/heatmap', auth, role('administrator', 'manager', 'resourcing'), c.getSkillsHeatmap);
 
 // Manager approvals
 router.get('/pending', auth, role('manager'), c.getPendingSkills);

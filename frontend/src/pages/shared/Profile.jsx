@@ -104,6 +104,7 @@ export default function Profile() {
     employee: 'bg-gray-100 text-gray-600',
     manager: 'bg-blue-100 text-blue-700',
     administrator: 'bg-purple-100 text-purple-700',
+    resourcing: 'bg-teal-100 text-teal-700',
   };
 
   return (

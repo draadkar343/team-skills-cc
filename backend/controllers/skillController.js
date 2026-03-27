@@ -600,7 +600,7 @@ exports.bulkUploadSubSkills = async (req, res, next) => {
 
 // ── HEATMAP ────────────────────────────────────────────────────────────────
 
-// GET /skills/heatmap — manager sees their squad; admin sees all
+// GET /skills/heatmap — manager sees their squad; admin/resourcing see all
 exports.getSkillsHeatmap = async (req, res, next) => {
   try {
     let employeeRows, skillRows, matrixRows;

@@ -359,7 +359,7 @@ exports.getAllTimesheets = async (_req, res, next) => {
 
 // ── WORKLOAD ───────────────────────────────────────────────────────────────
 
-// GET /timesheets/workload — manager sees squad; admin sees all employees
+// GET /timesheets/workload — manager sees squad; admin/resourcing see all employees
 exports.getWorkload = async (req, res, next) => {
   try {
     let rows;

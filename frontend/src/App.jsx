@@ -29,6 +29,9 @@ import AdminDashboard from './pages/admin/Dashboard';
 import JobRolesView from './pages/admin/JobRolesView';
 import AuditLog from './pages/admin/AuditLog';
 
+// Resourcing
+import ResourcingView from './pages/resourcing/ResourcingView';
+
 // Manager extra
 import MainSkillsView from './pages/manager/MainSkillsView';
 import SkillsHeatmap from './pages/shared/SkillsHeatmap';
@@ -62,6 +65,7 @@ function RootRedirect() {
   const { user, isAuthenticated } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (user?.role === 'administrator') return <Navigate to="/admin" replace />;
+  if (user?.role === 'resourcing') return <Navigate to="/resourcing" replace />;
   return <Navigate to="/dashboard" replace />;
 }
 
@@ -110,7 +114,7 @@ export default function App() {
 
       {/* Profile — all authenticated roles */}
       <Route path="/profile" element={
-        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator']}>
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing']}>
           <AppLayout><Profile /></AppLayout>
         </ProtectedRoute>
       } />
@@ -151,13 +155,20 @@ export default function App() {
 
       {/* Manager — heatmap and workload */}
       <Route path="/skills-heatmap" element={
-        <ProtectedRoute allowedRoles={['manager', 'administrator']}>
+        <ProtectedRoute allowedRoles={['manager', 'administrator', 'resourcing']}>
           <AppLayout><SkillsHeatmap /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/workload" element={
-        <ProtectedRoute allowedRoles={['manager', 'administrator']}>
+        <ProtectedRoute allowedRoles={['manager', 'administrator', 'resourcing']}>
           <AppLayout><WorkloadView /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Resourcing */}
+      <Route path="/resourcing" element={
+        <ProtectedRoute allowedRoles={['resourcing', 'administrator']}>
+          <AppLayout><ResourcingView /></AppLayout>
         </ProtectedRoute>
       } />
 

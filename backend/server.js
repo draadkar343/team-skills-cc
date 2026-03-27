@@ -19,6 +19,7 @@ const publicApiRoutes = require('./routes/publicApiRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const clientRoutes = require('./routes/clientRoutes');
+const resourcingRoutes = require('./routes/resourcingRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 const { scheduleBirthdayJob } = require('./services/birthdayJob');
@@ -233,6 +234,7 @@ app.use('/api/v1/public', publicApiRoutes);
 app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/clients', clientRoutes);
+app.use('/api/v1/resourcing', resourcingRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 

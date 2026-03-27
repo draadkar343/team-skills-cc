@@ -27,7 +27,7 @@ async function canManageClient(req, clientId) {
 exports.listClients = async (req, res, next) => {
   try {
     let rows;
-    if (req.user.role === 'administrator') {
+    if (req.user.role === 'administrator' || req.user.role === 'resourcing') {
       ({ rows } = await db.query(
         `SELECT c.*, u.first_name || ' ' || u.last_name AS created_by_name
          FROM clients c
@@ -131,7 +131,7 @@ exports.getSquadOverview = async (req, res, next) => {
   try {
     let memberRows, allocRows;
 
-    if (req.user.role === 'administrator') {
+    if (req.user.role === 'administrator' || req.user.role === 'resourcing') {
       ({ rows: memberRows } = await db.query(
         `SELECT u.id, u.first_name || ' ' || u.last_name AS name, u.email
          FROM users u WHERE u.role = 'employee' AND u.is_active = true ORDER BY name`

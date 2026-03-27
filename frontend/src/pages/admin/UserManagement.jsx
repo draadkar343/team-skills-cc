@@ -98,7 +98,7 @@ export default function UserManagement() {
     } finally { setBulkLoading(false); }
   };
 
-  const roleBadge = { employee: 'bg-gray-100 text-gray-600', manager: 'bg-blue-100 text-blue-700', administrator: 'bg-purple-100 text-purple-700' };
+  const roleBadge = { employee: 'bg-gray-100 text-gray-600', manager: 'bg-blue-100 text-blue-700', administrator: 'bg-purple-100 text-purple-700', resourcing: 'bg-teal-100 text-teal-700' };
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -209,6 +209,7 @@ export default function UserManagement() {
               <option value="employee">Employee</option>
               <option value="manager">Manager</option>
               <option value="administrator">Administrator</option>
+              <option value="resourcing">Resourcing</option>
             </select>
           </div>
           <div>

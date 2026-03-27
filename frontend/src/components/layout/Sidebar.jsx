@@ -36,6 +36,13 @@ export default function Sidebar() {
           <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
         </>
       )}
+      {user?.role === 'resourcing' && (
+        <>
+          <NavLink to="/resourcing" className={linkClass}>Resourcing Overview</NavLink>
+          <NavLink to="/skills-heatmap" className={linkClass}>Skills Heatmap</NavLink>
+          <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
+        </>
+      )}
       {user?.role === 'administrator' && (
         <>
           <NavLink to="/admin" className={linkClass}>Dashboard</NavLink>
@@ -49,6 +56,7 @@ export default function Sidebar() {
           <NavLink to="/client-planning" className={linkClass}>Client Planning</NavLink>
           <NavLink to="/skills-heatmap" className={linkClass}>Skills Heatmap</NavLink>
           <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
+          <NavLink to="/resourcing" className={linkClass}>Resourcing Overview</NavLink>
           <NavLink to="/admin/integrations" className={linkClass}>Integrations</NavLink>
           <NavLink to="/admin/news" className={linkClass}>News</NavLink>
           <NavLink to="/admin/config" className={linkClass}>System Config</NavLink>
