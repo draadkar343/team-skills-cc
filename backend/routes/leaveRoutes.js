@@ -20,6 +20,9 @@ router.get('/pending', auth, role('manager', 'administrator'), c.getPendingLeave
 router.patch('/:id/approve', auth, role('manager', 'administrator'), c.approveLeave);
 router.patch('/:id/reject', auth, role('manager', 'administrator'), c.rejectLeave);
 
+// AI leave suggestions — all roles
+router.get('/suggestions', auth, c.getSuggestions);
+
 // Team calendar — all roles
 router.get('/team-calendar', auth, c.getTeamCalendar);
 

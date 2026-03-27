@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { createNotification } = require('../services/notificationService');
+const { generateSuggestions } = require('../services/leaveSuggestionService');
 
 // ---------------------------------------------------------------------------
 // LEAVE TYPES (admin managed)
@@ -319,6 +320,23 @@ exports.getTeamCalendar = async (req, res, next) => {
     );
     res.json(rows);
   } catch (err) { next(err); }
+};
+
+// GET /leave/suggestions — AI-powered annual leave suggestions
+exports.getSuggestions = async (req, res, next) => {
+  try {
+    // Use country_code from query param, or fall back to user's profile
+    let countryCode = req.query.countryCode;
+    if (!countryCode) {
+      const { rows } = await db.query('SELECT country_code FROM users WHERE id = $1', [req.user.id]);
+      countryCode = rows[0]?.country_code || 'GB';
+    }
+    const suggestions = await generateSuggestions(countryCode);
+    res.json({ countryCode: countryCode.toUpperCase(), suggestions });
+  } catch (err) {
+    console.error('[leaveSuggestions] error:', err.message);
+    next(err);
+  }
 };
 
 // GET /leave/all — admin: all leave requests with filters

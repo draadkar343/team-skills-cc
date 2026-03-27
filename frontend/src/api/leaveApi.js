@@ -33,3 +33,7 @@ export const getTeamCalendar = (month) =>
 // Admin
 export const getAllLeave = (params) =>
   api.get('/leave/all', { params }).then(r => r.data);
+
+// AI suggestions
+export const getLeaveSuggestions = (countryCode) =>
+  api.get('/leave/suggestions', { params: countryCode ? { countryCode } : {} }).then(r => r.data);
