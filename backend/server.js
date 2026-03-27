@@ -22,6 +22,7 @@ const clientRoutes = require('./routes/clientRoutes');
 const resourcingRoutes = require('./routes/resourcingRoutes');
 const talentRoutes = require('./routes/talentRoutes');
 const kudosRoutes = require('./routes/kudosRoutes');
+const leaveRoutes = require('./routes/leaveRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 const { scheduleBirthdayJob } = require('./services/birthdayJob');
@@ -275,6 +276,47 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create password_reset_tokens table:', err.message));
 
+// Leave management tables
+db.query(`
+  CREATE TABLE IF NOT EXISTS leave_types (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    colour      VARCHAR(7) NOT NULL DEFAULT '#3B82F6',
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by  INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create leave_types:', err.message));
+
+db.query(`
+  CREATE TABLE IF NOT EXISTS leave_requests (
+    id               SERIAL PRIMARY KEY,
+    user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    leave_type_id    INTEGER NOT NULL REFERENCES leave_types(id) ON DELETE RESTRICT,
+    start_date       DATE NOT NULL,
+    end_date         DATE NOT NULL,
+    half_day         BOOLEAN NOT NULL DEFAULT FALSE,
+    total_days       NUMERIC(4,1) NOT NULL,
+    reason           TEXT,
+    status           VARCHAR(20) NOT NULL DEFAULT 'pending'
+                       CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
+    reviewed_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at      TIMESTAMPTZ,
+    rejection_reason TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create leave_requests:', err.message));
+
+db.query(`
+  CREATE INDEX IF NOT EXISTS idx_leave_requests_user ON leave_requests(user_id, created_at DESC)
+`).catch(() => {});
+db.query(`
+  CREATE INDEX IF NOT EXISTS idx_leave_requests_dates ON leave_requests(start_date, end_date)
+`).catch(() => {});
+
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
@@ -298,6 +340,7 @@ app.use('/api/v1/clients', clientRoutes);
 app.use('/api/v1/resourcing', resourcingRoutes);
 app.use('/api/v1/talent', talentRoutes);
 app.use('/api/v1/kudos', kudosRoutes);
+app.use('/api/v1/leave', leaveRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 

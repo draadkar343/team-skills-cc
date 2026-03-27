@@ -20,6 +20,8 @@ export default function Sidebar() {
           <NavLink to="/my-skills" className={linkClass}>My Skills</NavLink>
           <NavLink to="/my-certifications" className={linkClass}>My Certifications</NavLink>
           <NavLink to="/timesheets" className={linkClass}>Timesheets</NavLink>
+          <NavLink to="/my-leave" className={linkClass}>My Leave</NavLink>
+          <NavLink to="/team-calendar" className={linkClass}>Team Calendar</NavLink>
           <NavLink to="/biography" className={linkClass}>My Biography</NavLink>
           <NavLink to="/kudos" className={linkClass}>Recognition</NavLink>
         </>
@@ -30,6 +32,9 @@ export default function Sidebar() {
           <NavLink to="/skill-approvals" className={linkClass}>Skill Approvals</NavLink>
           <NavLink to="/cert-approvals" className={linkClass}>Cert Approvals</NavLink>
           <NavLink to="/timesheet-approvals" className={linkClass}>Timesheet Approvals</NavLink>
+          <NavLink to="/leave-approvals" className={linkClass}>Leave Approvals</NavLink>
+          <NavLink to="/my-leave" className={linkClass}>My Leave</NavLink>
+          <NavLink to="/team-calendar" className={linkClass}>Team Calendar</NavLink>
           <NavLink to="/squad" className={linkClass}>My Squad</NavLink>
           <NavLink to="/manager/main-skills" className={linkClass}>Main Skills</NavLink>
           <NavLink to="/client-planning" className={linkClass}>Client Planning</NavLink>
@@ -42,6 +47,8 @@ export default function Sidebar() {
         <>
           <NavLink to="/resourcing" className={linkClass}>Resourcing Overview</NavLink>
           <NavLink to="/talent-pipeline" className={linkClass}>Talent Pipeline</NavLink>
+          <NavLink to="/my-leave" className={linkClass}>My Leave</NavLink>
+          <NavLink to="/team-calendar" className={linkClass}>Team Calendar</NavLink>
           <NavLink to="/skills-heatmap" className={linkClass}>Skills Heatmap</NavLink>
           <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
           <NavLink to="/kudos" className={linkClass}>Recognition</NavLink>
@@ -62,7 +69,11 @@ export default function Sidebar() {
           <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
           <NavLink to="/resourcing" className={linkClass}>Resourcing Overview</NavLink>
           <NavLink to="/talent-pipeline" className={linkClass}>Talent Pipeline</NavLink>
+          <NavLink to="/my-leave" className={linkClass}>My Leave</NavLink>
+          <NavLink to="/leave-approvals" className={linkClass}>Leave Approvals</NavLink>
+          <NavLink to="/team-calendar" className={linkClass}>Team Calendar</NavLink>
           <NavLink to="/kudos" className={linkClass}>Recognition</NavLink>
+          <NavLink to="/admin/leave-types" className={linkClass}>Leave Types</NavLink>
           <NavLink to="/admin/integrations" className={linkClass}>Integrations</NavLink>
           <NavLink to="/admin/news" className={linkClass}>News</NavLink>
           <NavLink to="/admin/config" className={linkClass}>System Config</NavLink>

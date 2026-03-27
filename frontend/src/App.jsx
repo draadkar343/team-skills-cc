@@ -35,6 +35,8 @@ import TalentPipeline from './pages/resourcing/TalentPipeline';
 
 // Shared — all roles
 import KudosWall from './pages/shared/KudosWall';
+import MyLeave from './pages/shared/MyLeave';
+import TeamLeaveCalendar from './pages/shared/TeamLeaveCalendar';
 
 // Manager extra
 import MainSkillsView from './pages/manager/MainSkillsView';
@@ -51,6 +53,8 @@ import MyCertifications from './pages/employee/MyCertifications';
 import CertificationApprovals from './pages/manager/CertificationApprovals';
 import AllCertifications from './pages/admin/AllCertifications';
 import Integrations from './pages/admin/Integrations';
+import LeaveApprovals from './pages/manager/LeaveApprovals';
+import LeaveTypes from './pages/admin/LeaveTypes';
 
 function AppLayout({ children }) {
   return (
@@ -127,6 +131,25 @@ export default function App() {
       <Route path="/kudos" element={
         <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing']}>
           <AppLayout><KudosWall /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Leave — all authenticated roles */}
+      <Route path="/my-leave" element={
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing']}>
+          <AppLayout><MyLeave /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/team-calendar" element={
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing']}>
+          <AppLayout><TeamLeaveCalendar /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Manager — leave approvals */}
+      <Route path="/leave-approvals" element={
+        <ProtectedRoute allowedRoles={['manager', 'administrator']}>
+          <AppLayout><LeaveApprovals /></AppLayout>
         </ProtectedRoute>
       } />
 
@@ -247,6 +270,11 @@ export default function App() {
       <Route path="/admin/news" element={
         <ProtectedRoute allowedRoles={['administrator']}>
           <AppLayout><NewsManagement /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/leave-types" element={
+        <ProtectedRoute allowedRoles={['administrator']}>
+          <AppLayout><LeaveTypes /></AppLayout>
         </ProtectedRoute>
       } />
 

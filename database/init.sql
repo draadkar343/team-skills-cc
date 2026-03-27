@@ -538,3 +538,39 @@ CREATE TABLE talent_candidates (
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ============================================================
+-- LEAVE MANAGEMENT
+-- ============================================================
+
+CREATE TABLE leave_types (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    colour      VARCHAR(7) NOT NULL DEFAULT '#3B82F6',
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by  INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE leave_requests (
+    id               SERIAL PRIMARY KEY,
+    user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    leave_type_id    INTEGER NOT NULL REFERENCES leave_types(id) ON DELETE RESTRICT,
+    start_date       DATE NOT NULL,
+    end_date         DATE NOT NULL,
+    half_day         BOOLEAN NOT NULL DEFAULT FALSE,
+    total_days       NUMERIC(4,1) NOT NULL,
+    reason           TEXT,
+    status           VARCHAR(20) NOT NULL DEFAULT 'pending'
+                       CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
+    reviewed_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at      TIMESTAMPTZ,
+    rejection_reason TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_leave_requests_user ON leave_requests(user_id, created_at DESC);
+CREATE INDEX idx_leave_requests_dates ON leave_requests(start_date, end_date);
