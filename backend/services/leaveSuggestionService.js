@@ -1,7 +1,7 @@
 const Holidays = require('date-holidays');
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const client = new Anthropic();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -165,18 +165,12 @@ Pick the 3 best suggestions (best bang-for-buck, spread across different times o
   "tip": "One practical tip for booking or enjoying this break"
 }`;
 
-  const response = await client.messages.create({
-    model: 'claude-opus-4-6',
-    max_tokens: 1024,
-    thinking: { type: 'adaptive' },
-    messages: [{ role: 'user', content: prompt }],
-  });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const result = await model.generateContent(prompt);
+  const text = result.response.text().trim();
 
-  const textBlock = response.content.find(b => b.type === 'text');
-  if (!textBlock) throw new Error('No text in Claude response');
-
-  const jsonMatch = textBlock.text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error('Could not parse JSON from Claude response');
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) throw new Error('Could not parse JSON from Gemini response');
 
   return JSON.parse(jsonMatch[0]);
 }
