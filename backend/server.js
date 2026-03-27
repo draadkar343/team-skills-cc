@@ -276,7 +276,7 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create password_reset_tokens table:', err.message));
 
-// Leave management tables
+// Leave management tables — chained so leave_requests waits for leave_types
 db.query(`
   CREATE TABLE IF NOT EXISTS leave_types (
     id          SERIAL PRIMARY KEY,
@@ -288,9 +288,7 @@ db.query(`
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )
-`).catch(err => console.error('[startup] Failed to create leave_types:', err.message));
-
-db.query(`
+`).then(() => db.query(`
   CREATE TABLE IF NOT EXISTS leave_requests (
     id               SERIAL PRIMARY KEY,
     user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -308,14 +306,10 @@ db.query(`
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )
-`).catch(err => console.error('[startup] Failed to create leave_requests:', err.message));
-
-db.query(`
-  CREATE INDEX IF NOT EXISTS idx_leave_requests_user ON leave_requests(user_id, created_at DESC)
-`).catch(() => {});
-db.query(`
-  CREATE INDEX IF NOT EXISTS idx_leave_requests_dates ON leave_requests(start_date, end_date)
-`).catch(() => {});
+`)).then(() => Promise.all([
+  db.query(`CREATE INDEX IF NOT EXISTS idx_leave_requests_user ON leave_requests(user_id, created_at DESC)`),
+  db.query(`CREATE INDEX IF NOT EXISTS idx_leave_requests_dates ON leave_requests(start_date, end_date)`),
+])).catch(err => console.error('[startup] Failed to create leave tables:', err.message));
 
 app.use(helmet());
 app.use(cors());
