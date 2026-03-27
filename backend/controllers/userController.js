@@ -42,7 +42,7 @@ exports.getUser = async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.is_active,
-              u.date_of_birth, u.job_role_id, jr.name AS job_role_name
+              u.date_of_birth, u.job_role_id, u.country_code, jr.name AS job_role_name
        FROM users u
        LEFT JOIN job_roles jr ON jr.id = u.job_role_id
        WHERE u.id = $1`,
@@ -50,13 +50,13 @@ exports.getUser = async (req, res, next) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
     const u = rows[0];
-    res.json({ id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, role: u.role, isActive: u.is_active, dateOfBirth: u.date_of_birth, jobRoleId: u.job_role_id, jobRoleName: u.job_role_name });
+    res.json({ id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, role: u.role, isActive: u.is_active, dateOfBirth: u.date_of_birth, jobRoleId: u.job_role_id, jobRoleName: u.job_role_name, countryCode: u.country_code });
   } catch (err) { next(err); }
 };
 
 exports.updateUser = async (req, res, next) => {
   try {
-    const { firstName, lastName, role, isActive, dateOfBirth, jobRoleId } = req.body;
+    const { firstName, lastName, role, isActive, dateOfBirth, jobRoleId, countryCode } = req.body;
 
     // Only admins may change a user's role
     const roleValue = req.user.role === 'administrator' ? (role || null) : null;
@@ -69,15 +69,16 @@ exports.updateUser = async (req, res, next) => {
         is_active     = COALESCE($4, is_active),
         date_of_birth = CASE WHEN $5::boolean THEN $6::date ELSE date_of_birth END,
         job_role_id   = CASE WHEN $7::boolean THEN $8::integer ELSE job_role_id END,
+        country_code  = COALESCE($10, country_code),
         updated_at    = NOW()
-       WHERE id = $9 RETURNING id, email, first_name, last_name, role, is_active, date_of_birth, job_role_id`,
+       WHERE id = $9 RETURNING id, email, first_name, last_name, role, is_active, date_of_birth, job_role_id, country_code`,
       [firstName, lastName, roleValue, isActive,
        dateOfBirth !== undefined, dateOfBirth || null,
-       jobRoleId !== undefined, jobRoleId ?? null, req.params.id]
+       jobRoleId !== undefined, jobRoleId ?? null, req.params.id, countryCode || null]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
     const u = rows[0];
-    res.json({ id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, role: u.role, isActive: u.is_active, dateOfBirth: u.date_of_birth, jobRoleId: u.job_role_id });
+    res.json({ id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, role: u.role, isActive: u.is_active, dateOfBirth: u.date_of_birth, jobRoleId: u.job_role_id, countryCode: u.country_code });
   } catch (err) { next(err); }
 };
 

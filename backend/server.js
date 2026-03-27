@@ -148,6 +148,11 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create audit_retention_policies:', err.message));
 
+// Add country_code column to users if it doesn't exist
+db.query(`
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS country_code VARCHAR(10)
+`).catch(err => console.error('[startup] Failed to add country_code column:', err.message));
+
 // Create clients and client_allocations tables if they don't exist
 db.query(`
   CREATE TABLE IF NOT EXISTS clients (

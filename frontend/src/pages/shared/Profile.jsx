@@ -3,12 +3,13 @@ import { getMe, updateProfile, uploadAvatar, changePassword } from '../../api/au
 import { getJobRoles } from '../../api/jobRoleApi';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/common/Button';
+import { COUNTRIES } from '../../utils/countries';
 
 export default function Profile() {
   const { user: authUser, updateUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [jobRoles, setJobRoles] = useState([]);
-  const [form, setForm] = useState({ firstName: '', lastName: '', newEmail: '', dateOfBirth: '', jobRoleId: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', newEmail: '', dateOfBirth: '', jobRoleId: '', countryCode: '' });
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirm: '' });
   const [profileMsg, setProfileMsg] = useState(null);
   const [pwMsg, setPwMsg] = useState(null);
@@ -22,7 +23,7 @@ export default function Profile() {
     Promise.all([getMe(), getJobRoles()]).then(([u, roles]) => {
       setProfile(u);
       setJobRoles(roles);
-      setForm({ firstName: u.firstName, lastName: u.lastName, newEmail: u.email, dateOfBirth: u.dateOfBirth ? u.dateOfBirth.split('T')[0] : '', jobRoleId: u.jobRoleId ?? '' });
+      setForm({ firstName: u.firstName, lastName: u.lastName, newEmail: u.email, dateOfBirth: u.dateOfBirth ? u.dateOfBirth.split('T')[0] : '', jobRoleId: u.jobRoleId ?? '', countryCode: u.countryCode ?? '' });
     });
   }, []);
 
@@ -32,7 +33,8 @@ export default function Profile() {
       form.lastName !== profile.lastName ||
       form.newEmail !== profile.email ||
       form.dateOfBirth !== (profile.dateOfBirth ? profile.dateOfBirth.split('T')[0] : '') ||
-      (form.jobRoleId || '') !== (profile.jobRoleId ?? '').toString());
+      (form.jobRoleId || '') !== (profile.jobRoleId ?? '').toString() ||
+      (form.countryCode || '') !== (profile.countryCode ?? ''));
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -45,6 +47,7 @@ export default function Profile() {
         newEmail: form.newEmail !== profile.email ? form.newEmail : undefined,
         dateOfBirth: form.dateOfBirth || null,
         jobRoleId: form.jobRoleId !== '' ? parseInt(form.jobRoleId) : null,
+        countryCode: form.countryCode || null,
       });
       setProfile(p => ({ ...p, ...updated }));
       // Update stored user if name/email changed
@@ -218,6 +221,21 @@ export default function Profile() {
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Country / Region</label>
+          <select
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            value={form.countryCode}
+            onChange={e => setForm(f => ({ ...f, countryCode: e.target.value }))}
+          >
+            <option value="">— Not set —</option>
+            {COUNTRIES.map(c => (
+              <option key={c.code} value={c.code}>{c.name}</option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">Used to exclude public holidays from timesheets.</p>
         </div>
 
         <div>

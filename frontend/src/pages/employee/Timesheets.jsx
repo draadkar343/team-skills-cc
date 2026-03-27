@@ -3,6 +3,7 @@ import {
   getMyTimesheets, createTimesheet, getTimesheet, addEntry,
   updateEntry, deleteEntry, submitTimesheet, deleteTimesheet
 } from '../../api/timesheetApi';
+import { getPublicHolidays } from '../../api/authApi';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
@@ -28,6 +29,9 @@ export default function Timesheets() {
   const [showNew, setShowNew] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Public holidays: Map of date string → holiday name
+  const [holidays, setHolidays] = useState({});
+
   const load = async () => {
     const list = await getMyTimesheets();
     setTimesheets(list);
@@ -38,7 +42,24 @@ export default function Timesheets() {
     setSelected(ts);
   };
 
+  // Fetch holidays for current year and next year so weeks spanning year boundaries work
+  useEffect(() => {
+    const currentYear = new Date().getFullYear();
+    Promise.all([
+      getPublicHolidays(currentYear).catch(() => []),
+      getPublicHolidays(currentYear + 1).catch(() => []),
+    ]).then(([thisYear, nextYear]) => {
+      const map = {};
+      for (const h of [...thisYear, ...nextYear]) {
+        map[h.date] = h.name;
+      }
+      setHolidays(map);
+    });
+  }, []);
+
   useEffect(() => { load(); }, []);
+
+  const selectedDateHoliday = entryForm.workDate ? holidays[entryForm.workDate] : null;
 
   const handleCreate = async () => {
     setLoading(true);
@@ -55,6 +76,10 @@ export default function Timesheets() {
   const handleAddEntry = async (e) => {
     e.preventDefault();
     if (!selected) return;
+    if (selectedDateHoliday) {
+      alert(`${entryForm.workDate} is a public holiday (${selectedDateHoliday}). Time cannot be logged on this day.`);
+      return;
+    }
     setLoading(true);
     try {
       await addEntry(selected.id, {
@@ -92,6 +117,21 @@ export default function Timesheets() {
   };
 
   const canEdit = selected && ['draft', 'rejected'].includes(selected.status);
+
+  // Compute which days of the selected timesheet week are holidays
+  const weekHolidays = selected
+    ? (() => {
+        const result = [];
+        const start = new Date(selected.week_start_date);
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(start);
+          d.setDate(start.getDate() + i);
+          const dateStr = d.toISOString().slice(0, 10);
+          if (holidays[dateStr]) result.push({ date: dateStr, name: holidays[dateStr] });
+        }
+        return result;
+      })()
+    : [];
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -150,6 +190,20 @@ export default function Timesheets() {
               </div>
             )}
 
+            {/* Public holiday banner for this week */}
+            {weekHolidays.length > 0 && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-xs font-semibold text-amber-700 mb-1">Public holidays this week — time cannot be logged on these days:</p>
+                <ul className="space-y-0.5">
+                  {weekHolidays.map(h => (
+                    <li key={h.date} className="text-xs text-amber-700">
+                      <span className="font-medium">{h.date}</span> — {h.name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Entries table */}
             <table className="w-full text-sm mb-4">
               <thead>
@@ -165,52 +219,75 @@ export default function Timesheets() {
                 {(selected.entries || []).length === 0 ? (
                   <tr><td colSpan={5} className="text-gray-400 py-4 text-center">No entries yet.</td></tr>
                 ) : (
-                  (selected.entries || []).map(e => (
-                    <tr key={e.id} className="border-b last:border-0">
-                      <td className="py-2">{formatDate(e.work_date)}</td>
-                      <td className="py-2">{e.hours}</td>
-                      <td className="py-2">{e.project_code || '-'}</td>
-                      <td className="py-2">{e.description || '-'}</td>
-                      {canEdit && (
+                  (selected.entries || []).map(e => {
+                    const entryDateStr = formatDate(e.work_date);
+                    const holidayName = holidays[entryDateStr];
+                    return (
+                      <tr key={e.id} className={`border-b last:border-0 ${holidayName ? 'bg-amber-50' : ''}`}>
                         <td className="py-2">
-                          <button className="text-red-500 hover:text-red-700 text-xs" onClick={() => handleDeleteEntry(e.id)}>Remove</button>
+                          <span>{entryDateStr}</span>
+                          {holidayName && (
+                            <span className="ml-2 text-xs text-amber-600 font-medium" title={holidayName}>
+                              🏖 {holidayName}
+                            </span>
+                          )}
                         </td>
-                      )}
-                    </tr>
-                  ))
+                        <td className="py-2">{e.hours}</td>
+                        <td className="py-2">{e.project_code || '-'}</td>
+                        <td className="py-2">{e.description || '-'}</td>
+                        {canEdit && (
+                          <td className="py-2">
+                            <button className="text-red-500 hover:text-red-700 text-xs" onClick={() => handleDeleteEntry(e.id)}>Remove</button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
 
             {/* Add entry form */}
             {canEdit && (
-              <form onSubmit={handleAddEntry} className="border-t pt-4 grid grid-cols-5 gap-2 text-sm">
-                <input
-                  type="date" required
-                  className="border border-gray-300 rounded-lg px-2 py-1"
-                  value={entryForm.workDate}
-                  onChange={e => setEntryForm(f => ({ ...f, workDate: e.target.value }))}
-                />
-                <input
-                  type="number" step="0.5" min="0" max="24" required placeholder="Hours"
-                  className="border border-gray-300 rounded-lg px-2 py-1"
-                  value={entryForm.hours}
-                  onChange={e => setEntryForm(f => ({ ...f, hours: e.target.value }))}
-                />
-                <input
-                  type="text" placeholder="Project code"
-                  className="border border-gray-300 rounded-lg px-2 py-1"
-                  value={entryForm.projectCode}
-                  onChange={e => setEntryForm(f => ({ ...f, projectCode: e.target.value }))}
-                />
-                <input
-                  type="text" placeholder="Description"
-                  className="border border-gray-300 rounded-lg px-2 py-1"
-                  value={entryForm.description}
-                  onChange={e => setEntryForm(f => ({ ...f, description: e.target.value }))}
-                />
-                <Button type="submit" loading={loading} className="py-1">Add Row</Button>
-              </form>
+              <div className="border-t pt-4">
+                <form onSubmit={handleAddEntry} className="grid grid-cols-5 gap-2 text-sm">
+                  <div className="flex flex-col gap-1">
+                    <input
+                      type="date" required
+                      className={`border rounded-lg px-2 py-1 ${selectedDateHoliday ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`}
+                      value={entryForm.workDate}
+                      onChange={e => setEntryForm(f => ({ ...f, workDate: e.target.value }))}
+                    />
+                  </div>
+                  <input
+                    type="number" step="0.5" min="0" max="24" required placeholder="Hours"
+                    className="border border-gray-300 rounded-lg px-2 py-1"
+                    value={entryForm.hours}
+                    onChange={e => setEntryForm(f => ({ ...f, hours: e.target.value }))}
+                  />
+                  <input
+                    type="text" placeholder="Project code"
+                    className="border border-gray-300 rounded-lg px-2 py-1"
+                    value={entryForm.projectCode}
+                    onChange={e => setEntryForm(f => ({ ...f, projectCode: e.target.value }))}
+                  />
+                  <input
+                    type="text" placeholder="Description"
+                    className="border border-gray-300 rounded-lg px-2 py-1"
+                    value={entryForm.description}
+                    onChange={e => setEntryForm(f => ({ ...f, description: e.target.value }))}
+                  />
+                  <Button type="submit" loading={loading} disabled={!!selectedDateHoliday} className="py-1">
+                    Add Row
+                  </Button>
+                </form>
+                {selectedDateHoliday && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <span>🏖</span>
+                    <span><strong>{entryForm.workDate}</strong> is a public holiday: <strong>{selectedDateHoliday}</strong>. Time cannot be logged on this day.</span>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { listUsers, createUser, updateUser, deleteUser, resetUserPassword, bulkImportUsers } from '../../api/adminApi';
 import { getJobRoles } from '../../api/jobRoleApi';
+import { COUNTRIES } from '../../utils/countries';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
@@ -27,7 +28,7 @@ export default function UserManagement() {
   const openCreate = () => { setForm(emptyForm); setError(''); setModal('create'); };
   const openEdit = (u) => {
     setTarget(u);
-    setForm({ firstName: u.firstName, lastName: u.lastName, role: u.role, isActive: u.isActive, dateOfBirth: u.dateOfBirth ? u.dateOfBirth.split('T')[0] : '', jobRoleId: u.jobRoleId ?? '' });
+    setForm({ firstName: u.firstName, lastName: u.lastName, role: u.role, isActive: u.isActive, dateOfBirth: u.dateOfBirth ? u.dateOfBirth.split('T')[0] : '', jobRoleId: u.jobRoleId ?? '', countryCode: u.countryCode ?? '' });
     setError('');
     setModal('edit');
   };
@@ -50,7 +51,7 @@ export default function UserManagement() {
     e.preventDefault();
     setLoading(true);
     try {
-      await updateUser(target.id, { ...form, dateOfBirth: form.dateOfBirth || null, jobRoleId: form.jobRoleId !== '' ? parseInt(form.jobRoleId) : null });
+      await updateUser(target.id, { ...form, dateOfBirth: form.dateOfBirth || null, jobRoleId: form.jobRoleId !== '' ? parseInt(form.jobRoleId) : null, countryCode: form.countryCode || null });
       setModal(null);
       await load();
     } catch (err) {
@@ -208,6 +209,14 @@ export default function UserManagement() {
               <option value="employee">Employee</option>
               <option value="manager">Manager</option>
               <option value="administrator">Administrator</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Country / Region</label>
+            <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={form.countryCode || ''} onChange={e => setForm(x => ({ ...x, countryCode: e.target.value }))}>
+              <option value="">— Not set —</option>
+              {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
             </select>
           </div>
           <div className="flex gap-2 justify-end pt-2">

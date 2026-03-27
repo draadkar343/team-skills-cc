@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const db = require('../config/db');
 const { hashPassword, comparePassword, signToken } = require('../services/authService');
 const email = require('../services/emailService');
+const Holidays = require('date-holidays');
 
 exports.login = async (req, res, next) => {
   try {
@@ -30,7 +31,7 @@ exports.getMe = async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.avatar_url, u.biography,
-              u.date_of_birth, u.job_role_id, jr.name AS job_role_name
+              u.date_of_birth, u.job_role_id, u.country_code, jr.name AS job_role_name
        FROM users u
        LEFT JOIN job_roles jr ON jr.id = u.job_role_id
        WHERE u.id = $1`,
@@ -40,7 +41,7 @@ exports.getMe = async (req, res, next) => {
     res.json({
       id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name,
       role: u.role, avatarUrl: u.avatar_url, biography: u.biography,
-      dateOfBirth: u.date_of_birth,
+      dateOfBirth: u.date_of_birth, countryCode: u.country_code,
       jobRoleId: u.job_role_id, jobRoleName: u.job_role_name,
     });
   } catch (err) { next(err); }
@@ -48,7 +49,7 @@ exports.getMe = async (req, res, next) => {
 
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { firstName, lastName, newEmail, biography, dateOfBirth, jobRoleId } = req.body;
+    const { firstName, lastName, newEmail, biography, dateOfBirth, jobRoleId, countryCode } = req.body;
 
     // Check for email conflict before updating
     if (newEmail) {
@@ -70,11 +71,12 @@ exports.updateProfile = async (req, res, next) => {
         biography     = COALESCE($4, biography),
         date_of_birth = CASE WHEN $5::boolean THEN $6::date ELSE date_of_birth END,
         job_role_id   = CASE WHEN $7::boolean THEN $8::integer ELSE job_role_id END,
+        country_code  = COALESCE($10, country_code),
         updated_at    = NOW()
-       WHERE id = $9 RETURNING id, email, first_name, last_name, role, biography, date_of_birth, job_role_id`,
+       WHERE id = $9 RETURNING id, email, first_name, last_name, role, biography, date_of_birth, job_role_id, country_code`,
       [firstName || null, lastName || null, newEmail ? newEmail.toLowerCase() : null,
        biography ?? null, dateOfBirth !== undefined, dateOfBirth || null,
-       jobRoleId !== undefined, jobRoleId ?? null, req.user.id]
+       jobRoleId !== undefined, jobRoleId ?? null, req.user.id, countryCode || null]
     );
     const u = rows[0];
 
@@ -83,7 +85,7 @@ exports.updateProfile = async (req, res, next) => {
       email.sendEmailChanged(u.email, u.first_name, oldEmail);
     }
 
-    res.json({ id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, role: u.role, biography: u.biography, dateOfBirth: u.date_of_birth, jobRoleId: u.job_role_id });
+    res.json({ id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, role: u.role, biography: u.biography, dateOfBirth: u.date_of_birth, jobRoleId: u.job_role_id, countryCode: u.country_code });
   } catch (err) { next(err); }
 };
 
@@ -153,6 +155,34 @@ exports.resetPassword = async (req, res, next) => {
     await db.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1', [tokenId]);
 
     res.json({ message: 'Password has been reset. You can now log in.' });
+  } catch (err) { next(err); }
+};
+
+// GET /me/public-holidays?year=2026
+// Returns public holidays for the authenticated user's country
+exports.getPublicHolidays = async (req, res, next) => {
+  try {
+    const { rows } = await db.query('SELECT country_code FROM users WHERE id = $1', [req.user.id]);
+    const countryCode = rows[0]?.country_code;
+    if (!countryCode) return res.json([]);
+
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+
+    const hd = new Holidays();
+    const supported = hd.isHoliday; // Just to check if package loaded
+
+    hd.init(countryCode);
+    const holidays = hd.getHolidays(year);
+
+    // Only return public holidays (not optional/bank holidays)
+    const publicHolidays = holidays
+      .filter(h => h.type === 'public')
+      .map(h => ({
+        date: h.date.slice(0, 10),
+        name: h.name,
+      }));
+
+    res.json(publicHolidays);
   } catch (err) { next(err); }
 };
 
