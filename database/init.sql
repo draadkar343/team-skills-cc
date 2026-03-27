@@ -447,3 +447,94 @@ CREATE TABLE external_integrations (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ============================================================
+-- NOTIFICATIONS
+-- ============================================================
+
+CREATE TABLE notifications (
+    id         SERIAL PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type       VARCHAR(50) NOT NULL,
+    title      VARCHAR(255) NOT NULL,
+    message    TEXT NOT NULL,
+    is_read    BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_notifications_user ON notifications(user_id, created_at DESC);
+
+-- ============================================================
+-- CLIENTS & CLIENT ALLOCATIONS
+-- ============================================================
+
+CREATE TABLE clients (
+    id            SERIAL PRIMARY KEY,
+    name          VARCHAR(255) NOT NULL,
+    description   TEXT,
+    contact_name  VARCHAR(255),
+    contact_email VARCHAR(255),
+    is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by    INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE client_allocations (
+    id         SERIAL PRIMARY KEY,
+    client_id  INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    percentage SMALLINT NOT NULL CHECK (percentage > 0 AND percentage <= 100),
+    start_date DATE,
+    end_date   DATE,
+    notes      TEXT,
+    grade      CHAR(1) CHECK (grade IN ('A', 'B', 'C')),
+    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (client_id, user_id)
+);
+
+-- ============================================================
+-- KUDOS / RECOGNITION
+-- ============================================================
+
+CREATE TABLE kudos (
+    id           SERIAL PRIMARY KEY,
+    from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    to_user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category     VARCHAR(50),
+    message      TEXT NOT NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- TALENT PIPELINE
+-- ============================================================
+
+CREATE TABLE talent_candidates (
+    id                 SERIAL PRIMARY KEY,
+    first_name         VARCHAR(100) NOT NULL,
+    last_name          VARCHAR(100) NOT NULL,
+    email              VARCHAR(255),
+    phone              VARCHAR(50),
+    linkedin_url       VARCHAR(500),
+    stage              VARCHAR(30) NOT NULL DEFAULT 'sourced',
+    employment_type    VARCHAR(20),
+    job_role_id        INTEGER REFERENCES job_roles(id) ON DELETE SET NULL,
+    job_role_text      VARCHAR(255),
+    availability_date  DATE,
+    cv_path            VARCHAR(500),
+    cv_filename        VARCHAR(255),
+    verified           BOOLEAN NOT NULL DEFAULT FALSE,
+    verification_notes TEXT,
+    interview_date     TIMESTAMPTZ,
+    interview_panel    TEXT,
+    interview_score    SMALLINT CHECK (interview_score >= 1 AND interview_score <= 5),
+    interview_feedback TEXT,
+    notes              TEXT,
+    created_by         INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    assigned_to        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
