@@ -39,6 +39,7 @@ export default function Sidebar() {
       {user?.role === 'resourcing' && (
         <>
           <NavLink to="/resourcing" className={linkClass}>Resourcing Overview</NavLink>
+          <NavLink to="/talent-pipeline" className={linkClass}>Talent Pipeline</NavLink>
           <NavLink to="/skills-heatmap" className={linkClass}>Skills Heatmap</NavLink>
           <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
         </>
@@ -57,6 +58,7 @@ export default function Sidebar() {
           <NavLink to="/skills-heatmap" className={linkClass}>Skills Heatmap</NavLink>
           <NavLink to="/workload" className={linkClass}>Workload View</NavLink>
           <NavLink to="/resourcing" className={linkClass}>Resourcing Overview</NavLink>
+          <NavLink to="/talent-pipeline" className={linkClass}>Talent Pipeline</NavLink>
           <NavLink to="/admin/integrations" className={linkClass}>Integrations</NavLink>
           <NavLink to="/admin/news" className={linkClass}>News</NavLink>
           <NavLink to="/admin/config" className={linkClass}>System Config</NavLink>

@@ -58,7 +58,27 @@ const avatarUpload = multer({ storage: avatarStorage, fileFilter, limits: { file
 const certificateUpload = multer({ storage: certStorage, fileFilter: certFilter, limits: { fileSize: 10 * 1024 * 1024 } });
 const csvUpload = multer({ storage: multer.memoryStorage(), fileFilter: csvFilter, limits: { fileSize: 2 * 1024 * 1024 } });
 
+const cvFilter = (_req, file, cb) => {
+  const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+  if (allowed.includes(file.mimetype) || file.originalname.toLowerCase().match(/\.(pdf|doc|docx)$/)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only PDF and Word documents are allowed for CVs'), false);
+  }
+};
+
+const cvStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `cv_${Date.now()}${ext}`);
+  },
+});
+
+const cvUpload = multer({ storage: cvStorage, fileFilter: cvFilter, limits: { fileSize: 10 * 1024 * 1024 } });
+
 module.exports = logoUpload;
 module.exports.avatarUpload = avatarUpload;
 module.exports.certificateUpload = certificateUpload;
 module.exports.csvUpload = csvUpload;
+module.exports.cvUpload = cvUpload;

@@ -20,6 +20,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const resourcingRoutes = require('./routes/resourcingRoutes');
+const talentRoutes = require('./routes/talentRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 const { scheduleBirthdayJob } = require('./services/birthdayJob');
@@ -202,6 +203,48 @@ db.query(`
   CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC)
 `).catch(() => {});
 
+// Talent pipeline tables
+db.query(`
+  CREATE TABLE IF NOT EXISTS talent_candidates (
+    id                 SERIAL PRIMARY KEY,
+    first_name         VARCHAR(100) NOT NULL,
+    last_name          VARCHAR(100) NOT NULL,
+    email              VARCHAR(255),
+    phone              VARCHAR(50),
+    linkedin_url       VARCHAR(500),
+    stage              VARCHAR(30) NOT NULL DEFAULT 'sourced',
+    employment_type    VARCHAR(20),
+    job_role_id        INTEGER REFERENCES job_roles(id) ON DELETE SET NULL,
+    job_role_text      VARCHAR(255),
+    availability_date  DATE,
+    cv_path            VARCHAR(500),
+    cv_filename        VARCHAR(255),
+    verified           BOOLEAN NOT NULL DEFAULT FALSE,
+    verification_notes TEXT,
+    interview_date     TIMESTAMPTZ,
+    interview_panel    TEXT,
+    interview_score    SMALLINT CHECK (interview_score BETWEEN 1 AND 5),
+    interview_feedback TEXT,
+    notes              TEXT,
+    created_by         INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    assigned_to        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create talent_candidates:', err.message));
+
+db.query(`
+  CREATE TABLE IF NOT EXISTS talent_stage_history (
+    id           SERIAL PRIMARY KEY,
+    candidate_id INTEGER NOT NULL REFERENCES talent_candidates(id) ON DELETE CASCADE,
+    from_stage   VARCHAR(30),
+    to_stage     VARCHAR(30) NOT NULL,
+    note         TEXT,
+    changed_by   INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create talent_stage_history:', err.message));
+
 // Create password_reset_tokens table if it doesn't exist (safe to run on every start)
 db.query(`
   CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -235,6 +278,7 @@ app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/clients', clientRoutes);
 app.use('/api/v1/resourcing', resourcingRoutes);
+app.use('/api/v1/talent', talentRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 

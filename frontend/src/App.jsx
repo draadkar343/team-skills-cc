@@ -31,6 +31,7 @@ import AuditLog from './pages/admin/AuditLog';
 
 // Resourcing
 import ResourcingView from './pages/resourcing/ResourcingView';
+import TalentPipeline from './pages/resourcing/TalentPipeline';
 
 // Manager extra
 import MainSkillsView from './pages/manager/MainSkillsView';
@@ -169,6 +170,11 @@ export default function App() {
       <Route path="/resourcing" element={
         <ProtectedRoute allowedRoles={['resourcing', 'administrator']}>
           <AppLayout><ResourcingView /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/talent-pipeline" element={
+        <ProtectedRoute allowedRoles={['resourcing', 'administrator']}>
+          <AppLayout><TalentPipeline /></AppLayout>
         </ProtectedRoute>
       } />
 
