@@ -23,7 +23,8 @@ const resourcingRoutes = require('./routes/resourcingRoutes');
 const talentRoutes = require('./routes/talentRoutes');
 const kudosRoutes = require('./routes/kudosRoutes');
 const leaveRoutes = require('./routes/leaveRoutes');
-const rolesRoutes = require('./routes/rolesRoutes');
+const rolesRoutes   = require('./routes/rolesRoutes');
+const reportRoutes  = require('./routes/reportRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 const { scheduleBirthdayJob } = require('./services/birthdayJob');
@@ -376,7 +377,8 @@ db.query(`
     ('administrator','page.kudos'),('administrator','page.admin_leave_types'),
     ('administrator','page.admin_integrations'),('administrator','page.admin_news'),
     ('administrator','page.admin_config'),('administrator','page.admin_audit'),
-    ('administrator','page.admin_roles')
+    ('administrator','page.admin_roles'),
+    ('administrator','page.admin_reports')
   ON CONFLICT DO NOTHING
 `)).catch(err => console.error('[startup] Failed to create roles/permissions tables:', err.message));
 
@@ -444,7 +446,8 @@ app.use('/api/v1/resourcing', resourcingRoutes);
 app.use('/api/v1/talent', talentRoutes);
 app.use('/api/v1/kudos', kudosRoutes);
 app.use('/api/v1/leave', leaveRoutes);
-app.use('/api/v1/roles', rolesRoutes);
+app.use('/api/v1/roles',   rolesRoutes);
+app.use('/api/v1/reports', reportRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 

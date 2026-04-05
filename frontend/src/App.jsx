@@ -58,6 +58,7 @@ import Integrations from './pages/admin/Integrations';
 import LeaveApprovals from './pages/manager/LeaveApprovals';
 import LeaveTypes from './pages/admin/LeaveTypes';
 import RoleManagement from './pages/admin/RoleManagement';
+import Reports from './pages/admin/Reports';
 
 function AppLayout({ children }) {
   return (
@@ -296,6 +297,11 @@ export default function App() {
       <Route path="/admin/roles" element={
         <ProtectedRoute allowedRoles={['administrator']}>
           <AppLayout><RoleManagement /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/reports" element={
+        <ProtectedRoute allowedRoles={['administrator']}>
+          <AppLayout><Reports /></AppLayout>
         </ProtectedRoute>
       } />
 

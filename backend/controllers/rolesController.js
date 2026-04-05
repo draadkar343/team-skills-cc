@@ -42,6 +42,7 @@ const ALL_PERMISSIONS = [
   { key: 'page.admin_config',         label: 'System Config',        category: 'Administration' },
   { key: 'page.admin_audit',          label: 'Audit Log',            category: 'Administration' },
   { key: 'page.admin_roles',          label: 'Role Management',      category: 'Administration' },
+  { key: 'page.admin_reports',        label: 'Reports',              category: 'Administration' },
 ];
 
 // GET /roles  (admin only)

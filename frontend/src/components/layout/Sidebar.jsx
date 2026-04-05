@@ -104,6 +104,7 @@ export default function Sidebar() {
           {can('page.admin_config')         && <NavLink to="/admin/config"           className={linkClass}>System Config</NavLink>}
           {can('page.admin_audit')          && <NavLink to="/admin/audit"            className={linkClass}>Audit Log</NavLink>}
           {can('page.admin_roles')          && <NavLink to="/admin/roles"            className={linkClass}>Role Management</NavLink>}
+          {can('page.admin_reports')        && <NavLink to="/admin/reports"          className={linkClass}>Reports</NavLink>}
         </>
       )}
 
