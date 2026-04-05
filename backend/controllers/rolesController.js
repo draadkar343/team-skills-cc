@@ -112,6 +112,37 @@ exports.saveRolePermissions = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// POST /roles  (admin only)
+exports.createRole = async (req, res, next) => {
+  try {
+    const { name, displayName, description, color } = req.body;
+    if (!name || !displayName) return res.status(400).json({ error: 'name and displayName are required' });
+    if (!/^[a-z][a-z0-9_]*$/.test(name)) return res.status(400).json({ error: 'name must be lowercase letters, numbers and underscores only' });
+
+    const { rows } = await db.query(
+      `INSERT INTO system_roles (name, display_name, description, color, is_system)
+       VALUES ($1, $2, $3, $4, FALSE) RETURNING *`,
+      [name, displayName, description || null, color || '#6B7280']
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'A role with this name already exists' });
+    next(err);
+  }
+};
+
+// DELETE /roles/:name  (admin only — custom roles only)
+exports.deleteRole = async (req, res, next) => {
+  try {
+    const { rows: [role] } = await db.query('SELECT * FROM system_roles WHERE name = $1', [req.params.name]);
+    if (!role) return res.status(404).json({ error: 'Role not found' });
+    if (role.is_system) return res.status(403).json({ error: 'Cannot delete built-in system roles' });
+
+    await db.query('DELETE FROM system_roles WHERE name = $1', [req.params.name]);
+    res.json({ deleted: req.params.name });
+  } catch (err) { next(err); }
+};
+
 // GET /auth/my-permissions  (any authenticated user)
 exports.getMyPermissions = async (req, res, next) => {
   try {
