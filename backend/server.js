@@ -23,6 +23,7 @@ const resourcingRoutes = require('./routes/resourcingRoutes');
 const talentRoutes = require('./routes/talentRoutes');
 const kudosRoutes = require('./routes/kudosRoutes');
 const leaveRoutes = require('./routes/leaveRoutes');
+const rolesRoutes = require('./routes/rolesRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 const { scheduleBirthdayJob } = require('./services/birthdayJob');
@@ -321,6 +322,64 @@ db.query(`ALTER TABLE timesheet_entries ADD COLUMN IF NOT EXISTS wbs_element VAR
 db.query(`ALTER TABLE timesheet_entries ADD COLUMN IF NOT EXISTS client_name VARCHAR(150)`)
   .catch(err => console.error('[startup] Failed to add client_name column:', err.message));
 
+// System roles + role permissions (chained so permissions table waits for roles)
+db.query(`
+  CREATE TABLE IF NOT EXISTS system_roles (
+    name         VARCHAR(50) PRIMARY KEY,
+    display_name VARCHAR(100) NOT NULL,
+    description  TEXT,
+    color        VARCHAR(20) NOT NULL DEFAULT '#6B7280',
+    is_system    BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).then(() => db.query(`
+  INSERT INTO system_roles (name, display_name, description, color) VALUES
+    ('employee',           'Employee',           'Standard employee — personal skills, timesheets and leave', '#3B82F6'),
+    ('manager',            'Manager',            'Team manager with approval rights and squad management', '#8B5CF6'),
+    ('functional_manager', 'Functional Manager', 'Cross-squad manager with approval access but no squad ownership', '#EC4899'),
+    ('resourcing',         'Resourcing',         'Resourcing team — talent pipeline and allocation overview', '#F59E0B'),
+    ('administrator',      'Administrator',      'System administrator with full access to all features and settings', '#EF4444')
+  ON CONFLICT (name) DO NOTHING
+`)).then(() => db.query(`
+  CREATE TABLE IF NOT EXISTS role_permissions (
+    role_name  VARCHAR(50) NOT NULL REFERENCES system_roles(name) ON DELETE CASCADE,
+    permission VARCHAR(100) NOT NULL,
+    PRIMARY KEY (role_name, permission)
+  )
+`)).then(() => db.query(`
+  INSERT INTO role_permissions (role_name, permission) VALUES
+    ('employee','page.dashboard'),('employee','page.my_skills'),('employee','page.timesheets'),
+    ('employee','page.my_certifications'),('employee','page.biography'),
+    ('employee','page.my_leave'),('employee','page.team_calendar'),('employee','page.kudos'),
+    ('manager','page.dashboard'),('manager','page.skill_approvals'),('manager','page.cert_approvals'),
+    ('manager','page.timesheet_approvals'),('manager','page.leave_approvals'),('manager','page.squad'),
+    ('manager','page.main_skills'),('manager','page.clients'),('manager','page.client_planning'),
+    ('manager','page.skills_heatmap'),('manager','page.workload'),
+    ('manager','page.my_leave'),('manager','page.team_calendar'),('manager','page.kudos'),
+    ('functional_manager','page.skill_approvals'),('functional_manager','page.cert_approvals'),
+    ('functional_manager','page.timesheet_approvals'),('functional_manager','page.leave_approvals'),
+    ('functional_manager','page.skills_heatmap'),('functional_manager','page.workload'),
+    ('functional_manager','page.my_leave'),('functional_manager','page.team_calendar'),('functional_manager','page.kudos'),
+    ('resourcing','page.resourcing_dashboard'),('resourcing','page.resourcing'),
+    ('resourcing','page.talent_pipeline'),('resourcing','page.clients'),
+    ('resourcing','page.skills_heatmap'),('resourcing','page.workload'),
+    ('resourcing','page.my_leave'),('resourcing','page.team_calendar'),('resourcing','page.kudos'),
+    ('administrator','page.admin_dashboard'),('administrator','page.admin_users'),
+    ('administrator','page.admin_squads'),('administrator','page.admin_job_roles'),
+    ('administrator','page.admin_skills'),('administrator','page.admin_all_skills'),
+    ('administrator','page.admin_all_timesheets'),('administrator','page.admin_certifications'),
+    ('administrator','page.client_planning'),('administrator','page.clients'),
+    ('administrator','page.skills_heatmap'),('administrator','page.workload'),
+    ('administrator','page.resourcing_dashboard'),('administrator','page.resourcing'),
+    ('administrator','page.talent_pipeline'),('administrator','page.my_leave'),
+    ('administrator','page.leave_approvals'),('administrator','page.team_calendar'),
+    ('administrator','page.kudos'),('administrator','page.admin_leave_types'),
+    ('administrator','page.admin_integrations'),('administrator','page.admin_news'),
+    ('administrator','page.admin_config'),('administrator','page.admin_audit'),
+    ('administrator','page.admin_roles')
+  ON CONFLICT DO NOTHING
+`)).catch(err => console.error('[startup] Failed to create roles/permissions tables:', err.message));
+
 // Client roadmap items
 db.query(`
   CREATE TABLE IF NOT EXISTS client_roadmap_items (
@@ -385,6 +444,7 @@ app.use('/api/v1/resourcing', resourcingRoutes);
 app.use('/api/v1/talent', talentRoutes);
 app.use('/api/v1/kudos', kudosRoutes);
 app.use('/api/v1/leave', leaveRoutes);
+app.use('/api/v1/roles', rolesRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 

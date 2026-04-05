@@ -57,6 +57,7 @@ import AllCertifications from './pages/admin/AllCertifications';
 import Integrations from './pages/admin/Integrations';
 import LeaveApprovals from './pages/manager/LeaveApprovals';
 import LeaveTypes from './pages/admin/LeaveTypes';
+import RoleManagement from './pages/admin/RoleManagement';
 
 function AppLayout({ children }) {
   return (
@@ -290,6 +291,11 @@ export default function App() {
       <Route path="/admin/leave-types" element={
         <ProtectedRoute allowedRoles={['administrator']}>
           <AppLayout><LeaveTypes /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/roles" element={
+        <ProtectedRoute allowedRoles={['administrator']}>
+          <AppLayout><RoleManagement /></AppLayout>
         </ProtectedRoute>
       } />
 
