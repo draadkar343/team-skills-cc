@@ -24,7 +24,10 @@ const talentRoutes = require('./routes/talentRoutes');
 const kudosRoutes = require('./routes/kudosRoutes');
 const leaveRoutes = require('./routes/leaveRoutes');
 const rolesRoutes   = require('./routes/rolesRoutes');
-const reportRoutes  = require('./routes/reportRoutes');
+const reportRoutes      = require('./routes/reportRoutes');
+const onboardingRoutes  = require('./routes/onboardingRoutes');
+const orgRoutes         = require('./routes/orgRoutes');
+const directoryRoutes   = require('./routes/directoryRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 const { scheduleBirthdayJob } = require('./services/birthdayJob');
@@ -352,19 +355,23 @@ db.query(`
     ('employee','page.dashboard'),('employee','page.my_skills'),('employee','page.timesheets'),
     ('employee','page.my_certifications'),('employee','page.biography'),
     ('employee','page.my_leave'),('employee','page.team_calendar'),('employee','page.kudos'),
+    ('employee','page.onboarding'),('employee','page.directory'),('employee','page.org_chart'),
     ('manager','page.dashboard'),('manager','page.skill_approvals'),('manager','page.cert_approvals'),
     ('manager','page.timesheet_approvals'),('manager','page.leave_approvals'),('manager','page.squad'),
     ('manager','page.main_skills'),('manager','page.clients'),('manager','page.client_planning'),
     ('manager','page.skills_heatmap'),('manager','page.workload'),
     ('manager','page.my_leave'),('manager','page.team_calendar'),('manager','page.kudos'),
+    ('manager','page.directory'),('manager','page.org_chart'),
     ('functional_manager','page.skill_approvals'),('functional_manager','page.cert_approvals'),
     ('functional_manager','page.timesheet_approvals'),('functional_manager','page.leave_approvals'),
     ('functional_manager','page.skills_heatmap'),('functional_manager','page.workload'),
     ('functional_manager','page.my_leave'),('functional_manager','page.team_calendar'),('functional_manager','page.kudos'),
+    ('functional_manager','page.directory'),('functional_manager','page.org_chart'),
     ('resourcing','page.resourcing_dashboard'),('resourcing','page.resourcing'),
     ('resourcing','page.talent_pipeline'),('resourcing','page.clients'),
     ('resourcing','page.skills_heatmap'),('resourcing','page.workload'),
     ('resourcing','page.my_leave'),('resourcing','page.team_calendar'),('resourcing','page.kudos'),
+    ('resourcing','page.directory'),('resourcing','page.org_chart'),
     ('administrator','page.admin_dashboard'),('administrator','page.admin_users'),
     ('administrator','page.admin_squads'),('administrator','page.admin_job_roles'),
     ('administrator','page.admin_skills'),('administrator','page.admin_all_skills'),
@@ -378,7 +385,10 @@ db.query(`
     ('administrator','page.admin_integrations'),('administrator','page.admin_news'),
     ('administrator','page.admin_config'),('administrator','page.admin_audit'),
     ('administrator','page.admin_roles'),
-    ('administrator','page.admin_reports')
+    ('administrator','page.admin_reports'),
+    ('administrator','page.admin_onboarding'),
+    ('administrator','page.directory'),
+    ('administrator','page.org_chart')
   ON CONFLICT DO NOTHING
 `)).catch(err => console.error('[startup] Failed to create roles/permissions tables:', err.message));
 
@@ -422,6 +432,43 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create client_contracts:', err.message));
 
+// Onboarding checklist tables
+db.query(`
+  CREATE TABLE IF NOT EXISTS onboarding_templates (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(255) NOT NULL,
+    description TEXT,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by  INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).then(() => db.query(`
+  CREATE TABLE IF NOT EXISTS onboarding_template_tasks (
+    id          SERIAL PRIMARY KEY,
+    template_id INTEGER NOT NULL REFERENCES onboarding_templates(id) ON DELETE CASCADE,
+    title       VARCHAR(255) NOT NULL,
+    description TEXT,
+    sort_order  SMALLINT NOT NULL DEFAULT 0
+  )
+`)).then(() => db.query(`
+  CREATE TABLE IF NOT EXISTS employee_onboarding (
+    id          SERIAL PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    template_id INTEGER NOT NULL REFERENCES onboarding_templates(id) ON DELETE RESTRICT,
+    assigned_by INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, template_id)
+  )
+`)).then(() => db.query(`
+  CREATE TABLE IF NOT EXISTS employee_onboarding_progress (
+    onboarding_id INTEGER NOT NULL REFERENCES employee_onboarding(id) ON DELETE CASCADE,
+    task_id       INTEGER NOT NULL REFERENCES onboarding_template_tasks(id) ON DELETE CASCADE,
+    completed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (onboarding_id, task_id)
+  )
+`)).catch(err => console.error('[startup] Failed to create onboarding tables:', err.message));
+
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
@@ -446,8 +493,11 @@ app.use('/api/v1/resourcing', resourcingRoutes);
 app.use('/api/v1/talent', talentRoutes);
 app.use('/api/v1/kudos', kudosRoutes);
 app.use('/api/v1/leave', leaveRoutes);
-app.use('/api/v1/roles',   rolesRoutes);
-app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/roles',      rolesRoutes);
+app.use('/api/v1/reports',    reportRoutes);
+app.use('/api/v1/onboarding', onboardingRoutes);
+app.use('/api/v1/org',        orgRoutes);
+app.use('/api/v1/directory',  directoryRoutes);
 
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 

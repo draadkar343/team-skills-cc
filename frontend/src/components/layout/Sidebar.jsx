@@ -26,7 +26,10 @@ export default function Sidebar() {
           {can('page.my_leave')          && <NavLink to="/my-leave"          className={linkClass}>My Leave</NavLink>}
           {can('page.team_calendar')     && <NavLink to="/team-calendar"     className={linkClass}>Team Calendar</NavLink>}
           {can('page.biography')         && <NavLink to="/biography"         className={linkClass}>My Biography</NavLink>}
+          {can('page.onboarding')        && <NavLink to="/onboarding"        className={linkClass}>My Onboarding</NavLink>}
           {can('page.kudos')             && <NavLink to="/kudos"             className={linkClass}>Recognition</NavLink>}
+          {can('page.directory')         && <NavLink to="/directory"         className={linkClass}>Directory</NavLink>}
+          {can('page.org_chart')         && <NavLink to="/org-chart"         className={linkClass}>Org Chart</NavLink>}
         </>
       )}
 
@@ -40,6 +43,8 @@ export default function Sidebar() {
           {can('page.my_leave')             && <NavLink to="/my-leave"             className={linkClass}>My Leave</NavLink>}
           {can('page.team_calendar')        && <NavLink to="/team-calendar"        className={linkClass}>Team Calendar</NavLink>}
           {can('page.squad')                && <NavLink to="/squad"                className={linkClass}>My Squad</NavLink>}
+          {can('page.directory')            && <NavLink to="/directory"            className={linkClass}>Directory</NavLink>}
+          {can('page.org_chart')            && <NavLink to="/org-chart"            className={linkClass}>Org Chart</NavLink>}
           {can('page.main_skills')          && <NavLink to="/manager/main-skills"  className={linkClass}>Main Skills</NavLink>}
           {can('page.clients')              && <NavLink to="/clients"              className={linkClass}>Clients</NavLink>}
           {can('page.client_planning')      && <NavLink to="/client-planning"      className={linkClass}>Client Planning</NavLink>}
@@ -60,6 +65,8 @@ export default function Sidebar() {
           {can('page.my_leave')            && <NavLink to="/my-leave"            className={linkClass}>My Leave</NavLink>}
           {can('page.team_calendar')       && <NavLink to="/team-calendar"       className={linkClass}>Team Calendar</NavLink>}
           {can('page.kudos')               && <NavLink to="/kudos"               className={linkClass}>Recognition</NavLink>}
+          {can('page.directory')           && <NavLink to="/directory"           className={linkClass}>Directory</NavLink>}
+          {can('page.org_chart')           && <NavLink to="/org-chart"           className={linkClass}>Org Chart</NavLink>}
         </>
       )}
 
@@ -74,6 +81,8 @@ export default function Sidebar() {
           {can('page.skills_heatmap')       && <NavLink to="/skills-heatmap"       className={linkClass}>Skills Heatmap</NavLink>}
           {can('page.workload')             && <NavLink to="/workload"             className={linkClass}>Workload View</NavLink>}
           {can('page.kudos')                && <NavLink to="/kudos"                className={linkClass}>Recognition</NavLink>}
+          {can('page.directory')            && <NavLink to="/directory"            className={linkClass}>Directory</NavLink>}
+          {can('page.org_chart')            && <NavLink to="/org-chart"            className={linkClass}>Org Chart</NavLink>}
         </>
       )}
 
@@ -105,6 +114,9 @@ export default function Sidebar() {
           {can('page.admin_audit')          && <NavLink to="/admin/audit"            className={linkClass}>Audit Log</NavLink>}
           {can('page.admin_roles')          && <NavLink to="/admin/roles"            className={linkClass}>Role Management</NavLink>}
           {can('page.admin_reports')        && <NavLink to="/admin/reports"          className={linkClass}>Reports</NavLink>}
+          {can('page.admin_onboarding')     && <NavLink to="/admin/onboarding"       className={linkClass}>Onboarding</NavLink>}
+          {can('page.directory')            && <NavLink to="/directory"              className={linkClass}>Directory</NavLink>}
+          {can('page.org_chart')            && <NavLink to="/org-chart"              className={linkClass}>Org Chart</NavLink>}
         </>
       )}
 

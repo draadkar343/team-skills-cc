@@ -7,6 +7,8 @@ const ALL_PERMISSIONS = [
   { key: 'page.timesheets',           label: 'Timesheets',           category: 'Personal' },
   { key: 'page.my_certifications',    label: 'My Certifications',    category: 'Personal' },
   { key: 'page.biography',            label: 'My Biography',         category: 'Personal' },
+  { key: 'page.onboarding',           label: 'My Onboarding',        category: 'Personal' },
+  { key: 'page.directory',            label: 'Employee Directory',   category: 'Personal' },
   // Leave & Calendar
   { key: 'page.my_leave',             label: 'My Leave',             category: 'Leave & Calendar' },
   { key: 'page.team_calendar',        label: 'Team Calendar',        category: 'Leave & Calendar' },
@@ -18,6 +20,7 @@ const ALL_PERMISSIONS = [
   { key: 'page.leave_approvals',      label: 'Leave Approvals',      category: 'Approvals' },
   // Team & Clients
   { key: 'page.squad',                label: 'My Squad',             category: 'Team & Clients' },
+  { key: 'page.org_chart',            label: 'Org Chart',            category: 'Team & Clients' },
   { key: 'page.main_skills',          label: 'Main Skills',          category: 'Team & Clients' },
   { key: 'page.clients',              label: 'Clients',              category: 'Team & Clients' },
   { key: 'page.client_planning',      label: 'Client Planning',      category: 'Team & Clients' },
@@ -43,6 +46,7 @@ const ALL_PERMISSIONS = [
   { key: 'page.admin_audit',          label: 'Audit Log',            category: 'Administration' },
   { key: 'page.admin_roles',          label: 'Role Management',      category: 'Administration' },
   { key: 'page.admin_reports',        label: 'Reports',              category: 'Administration' },
+  { key: 'page.admin_onboarding',     label: 'Onboarding Templates', category: 'Administration' },
 ];
 
 // GET /roles  (admin only)

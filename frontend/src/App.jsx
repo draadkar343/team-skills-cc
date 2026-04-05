@@ -59,6 +59,10 @@ import LeaveApprovals from './pages/manager/LeaveApprovals';
 import LeaveTypes from './pages/admin/LeaveTypes';
 import RoleManagement from './pages/admin/RoleManagement';
 import Reports from './pages/admin/Reports';
+import Onboarding from './pages/employee/Onboarding';
+import OnboardingAdmin from './pages/admin/OnboardingAdmin';
+import OrgChart from './pages/shared/OrgChart';
+import EmployeeDirectory from './pages/shared/EmployeeDirectory';
 
 function AppLayout({ children }) {
   return (
@@ -302,6 +306,32 @@ export default function App() {
       <Route path="/admin/reports" element={
         <ProtectedRoute allowedRoles={['administrator']}>
           <AppLayout><Reports /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/onboarding" element={
+        <ProtectedRoute allowedRoles={['administrator']}>
+          <AppLayout><OnboardingAdmin /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Employee onboarding checklist */}
+      <Route path="/onboarding" element={
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
+          <AppLayout><Onboarding /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Org chart — all roles */}
+      <Route path="/org-chart" element={
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
+          <AppLayout><OrgChart /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Directory — all roles */}
+      <Route path="/directory" element={
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
+          <AppLayout><EmployeeDirectory /></AppLayout>
         </ProtectedRoute>
       } />
 
