@@ -6,6 +6,33 @@ import Modal from '../../components/common/Modal';
 
 const emptyForm = { title: '', body: '', jobRoleId: '' };
 
+function FormFields({ f, setF, jobRoles }) {
+  return (
+    <>
+      <div>
+        <label className="block text-sm font-medium mb-1">Title</label>
+        <input required type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          value={f.title} onChange={e => setF(x => ({ ...x, title: e.target.value }))} />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Body</label>
+        <textarea required rows={5} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-y"
+          value={f.body} onChange={e => setF(x => ({ ...x, body: e.target.value }))} />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Job Role (leave blank to show to all)</label>
+        <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          value={f.jobRoleId} onChange={e => setF(x => ({ ...x, jobRoleId: e.target.value }))}>
+          <option value="">All roles</option>
+          {jobRoles.filter(r => r.is_active).map(r => (
+            <option key={r.id} value={r.id}>{r.name}</option>
+          ))}
+        </select>
+      </div>
+    </>
+  );
+}
+
 export default function NewsManagement() {
   const [items, setItems] = useState([]);
   const [jobRoles, setJobRoles] = useState([]);
@@ -67,31 +94,6 @@ export default function NewsManagement() {
     finally { setLoading(false); }
   };
 
-  const FormFields = ({ f, setF }) => (
-    <>
-      <div>
-        <label className="block text-sm font-medium mb-1">Title</label>
-        <input required type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          value={f.title} onChange={e => setF(x => ({ ...x, title: e.target.value }))} />
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Body</label>
-        <textarea required rows={5} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-y"
-          value={f.body} onChange={e => setF(x => ({ ...x, body: e.target.value }))} />
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Job Role (leave blank to show to all)</label>
-        <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          value={f.jobRoleId} onChange={e => setF(x => ({ ...x, jobRoleId: e.target.value }))}>
-          <option value="">All roles</option>
-          {jobRoles.filter(r => r.is_active).map(r => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
-      </div>
-    </>
-  );
-
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -147,7 +149,7 @@ export default function NewsManagement() {
 
       <Modal open={addModal} onClose={() => setAddModal(false)} title="Add News Item">
         <form onSubmit={handleCreate} className="space-y-3">
-          <FormFields f={form} setF={setForm} />
+          <FormFields f={form} setF={setForm} jobRoles={jobRoles} />
           <div className="flex gap-2 justify-end pt-1">
             <Button variant="secondary" type="button" onClick={() => setAddModal(false)}>Cancel</Button>
             <Button type="submit" loading={loading}>Publish</Button>

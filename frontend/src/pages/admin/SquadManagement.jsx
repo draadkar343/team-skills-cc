@@ -5,6 +5,43 @@ import Modal from '../../components/common/Modal';
 
 const emptyForm = { name: '', managerId: '' };
 
+function SquadForm({ onSubmit, form, setForm, managers, error, loading, onCancel }) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      {error && <p className="text-sm text-red-500">{error}</p>}
+      <div>
+        <label className="block text-sm font-medium mb-1">Squad Name</label>
+        <input
+          required
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          value={form.name}
+          onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Squad Lead (Manager)</label>
+        <select
+          required
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          value={form.managerId}
+          onChange={e => setForm(f => ({ ...f, managerId: e.target.value }))}
+        >
+          <option value="">Select a manager...</option>
+          {managers.map(m => (
+            <option key={m.id} value={m.id}>
+              {m.first_name} {m.last_name} ({m.email})
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex gap-2 justify-end pt-1">
+        <Button variant="secondary" type="button" onClick={onCancel}>Cancel</Button>
+        <Button type="submit" loading={loading}>Save</Button>
+      </div>
+    </form>
+  );
+}
+
 export default function AdminSquadManagement() {
   const [squads, setSquads] = useState([]);
   const [managers, setManagers] = useState([]);
@@ -108,41 +145,6 @@ export default function AdminSquadManagement() {
     } finally { setMembersLoading(false); }
   };
 
-  const SquadForm = ({ onSubmit }) => (
-    <form onSubmit={onSubmit} className="space-y-4">
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      <div>
-        <label className="block text-sm font-medium mb-1">Squad Name</label>
-        <input
-          required
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          value={form.name}
-          onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Squad Lead (Manager)</label>
-        <select
-          required
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          value={form.managerId}
-          onChange={e => setForm(f => ({ ...f, managerId: e.target.value }))}
-        >
-          <option value="">Select a manager...</option>
-          {managers.map(m => (
-            <option key={m.id} value={m.id}>
-              {m.first_name} {m.last_name} ({m.email})
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex gap-2 justify-end pt-1">
-        <Button variant="secondary" type="button" onClick={() => setModal(null)}>Cancel</Button>
-        <Button type="submit" loading={loading}>Save</Button>
-      </div>
-    </form>
-  );
-
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -199,12 +201,12 @@ export default function AdminSquadManagement() {
 
       {/* Create Modal */}
       <Modal open={modal === 'create'} onClose={() => setModal(null)} title="Create Squad">
-        <SquadForm onSubmit={handleCreate} />
+        <SquadForm onSubmit={handleCreate} form={form} setForm={setForm} managers={managers} error={error} loading={loading} onCancel={() => setModal(null)} />
       </Modal>
 
       {/* Edit Modal */}
       <Modal open={modal === 'edit'} onClose={() => setModal(null)} title={`Edit: ${target?.name}`}>
-        <SquadForm onSubmit={handleUpdate} />
+        <SquadForm onSubmit={handleUpdate} form={form} setForm={setForm} managers={managers} error={error} loading={loading} onCancel={() => setModal(null)} />
       </Modal>
 
       {/* Members Modal */}

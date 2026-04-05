@@ -40,6 +40,103 @@ function CopyBtn({ value }) {
   );
 }
 
+function AuthConfigFields({ cfg, setCfg, authType }) {
+  if (authType === 'api_key') return (
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <label className="block text-xs font-medium mb-1">Header Name</label>
+        <input type="text" placeholder="X-API-Key" className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+          value={cfg.header || ''} onChange={e => setCfg(c => ({ ...c, header: e.target.value }))} />
+      </div>
+      <div>
+        <label className="block text-xs font-medium mb-1">Key Value</label>
+        <input type="password" className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+          value={cfg.value || ''} onChange={e => setCfg(c => ({ ...c, value: e.target.value }))} />
+      </div>
+    </div>
+  );
+  if (authType === 'bearer') return (
+    <div>
+      <label className="block text-xs font-medium mb-1">Bearer Token</label>
+      <input type="password" className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+        value={cfg.token || ''} onChange={e => setCfg(c => ({ ...c, token: e.target.value }))} />
+    </div>
+  );
+  if (authType === 'basic') return (
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <label className="block text-xs font-medium mb-1">Username</label>
+        <input type="text" className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+          value={cfg.username || ''} onChange={e => setCfg(c => ({ ...c, username: e.target.value }))} />
+      </div>
+      <div>
+        <label className="block text-xs font-medium mb-1">Password</label>
+        <input type="password" className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+          value={cfg.password || ''} onChange={e => setCfg(c => ({ ...c, password: e.target.value }))} />
+      </div>
+    </div>
+  );
+  return null;
+}
+
+function ExtForm({ f, setF }) {
+  return (
+    <>
+      <div><label className="block text-sm font-medium mb-1">Name <span className="text-red-500">*</span></label>
+        <input required type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          value={f.name} onChange={e => setF(x => ({ ...x, name: e.target.value }))} /></div>
+      <div><label className="block text-sm font-medium mb-1">Description</label>
+        <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          value={f.description} onChange={e => setF(x => ({ ...x, description: e.target.value }))} /></div>
+      <div><label className="block text-sm font-medium mb-1">Base URL <span className="text-red-500">*</span></label>
+        <input required type="url" placeholder="https://api.example.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          value={f.baseUrl} onChange={e => setF(x => ({ ...x, baseUrl: e.target.value }))} /></div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Authentication</label>
+        <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"
+          value={f.authType} onChange={e => setF(x => ({ ...x, authType: e.target.value, authConfig: {} }))}>
+          {AUTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <AuthConfigFields authType={f.authType} cfg={f.authConfig} setCfg={cfg => setF(x => ({ ...x, authConfig: typeof cfg === 'function' ? cfg(x.authConfig) : cfg }))} />
+      </div>
+    </>
+  );
+}
+
+function toggleEvent(ev, f, setF) {
+  setF(x => ({
+    ...x,
+    events: x.events.includes(ev) ? x.events.filter(e => e !== ev) : [...x.events, ev],
+  }));
+}
+
+function WhForm({ f, setF }) {
+  return (
+    <>
+      <div><label className="block text-sm font-medium mb-1">Name <span className="text-red-500">*</span></label>
+        <input required type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          value={f.name} onChange={e => setF(x => ({ ...x, name: e.target.value }))} /></div>
+      <div><label className="block text-sm font-medium mb-1">URL <span className="text-red-500">*</span></label>
+        <input required type="url" placeholder="https://hooks.example.com/..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          value={f.url} onChange={e => setF(x => ({ ...x, url: e.target.value }))} /></div>
+      <div><label className="block text-sm font-medium mb-1">Secret <span className="text-xs text-gray-400">(optional — used for HMAC signature in X-Webhook-Signature header)</span></label>
+        <input type="password" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder={f.has_secret ? '(leave blank to keep existing)' : ''}
+          value={f.secret} onChange={e => setF(x => ({ ...x, secret: e.target.value }))} /></div>
+      <div>
+        <label className="block text-sm font-medium mb-2">Events <span className="text-red-500">*</span></label>
+        <div className="grid grid-cols-2 gap-1">
+          {ALL_EVENTS.map(ev => (
+            <label key={ev} className="flex items-center gap-2 cursor-pointer text-sm">
+              <input type="checkbox" checked={f.events.includes(ev)} onChange={() => toggleEvent(ev, f, setF)} />
+              <code className="text-xs">{ev}</code>
+            </label>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── API KEYS TAB ────────────────────────────────────────────────────────────
 
 function ApiKeysTab() {
@@ -249,67 +346,6 @@ function ExternalTab() {
     }
   };
 
-  const AuthConfigFields = ({ cfg, setCfg, authType }) => {
-    if (authType === 'api_key') return (
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="block text-xs font-medium mb-1">Header Name</label>
-          <input type="text" placeholder="X-API-Key" className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-            value={cfg.header || ''} onChange={e => setCfg(c => ({ ...c, header: e.target.value }))} />
-        </div>
-        <div>
-          <label className="block text-xs font-medium mb-1">Key Value</label>
-          <input type="password" className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-            value={cfg.value || ''} onChange={e => setCfg(c => ({ ...c, value: e.target.value }))} />
-        </div>
-      </div>
-    );
-    if (authType === 'bearer') return (
-      <div>
-        <label className="block text-xs font-medium mb-1">Bearer Token</label>
-        <input type="password" className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-          value={cfg.token || ''} onChange={e => setCfg(c => ({ ...c, token: e.target.value }))} />
-      </div>
-    );
-    if (authType === 'basic') return (
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="block text-xs font-medium mb-1">Username</label>
-          <input type="text" className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-            value={cfg.username || ''} onChange={e => setCfg(c => ({ ...c, username: e.target.value }))} />
-        </div>
-        <div>
-          <label className="block text-xs font-medium mb-1">Password</label>
-          <input type="password" className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-            value={cfg.password || ''} onChange={e => setCfg(c => ({ ...c, password: e.target.value }))} />
-        </div>
-      </div>
-    );
-    return null;
-  };
-
-  const ExtForm = ({ f, setF }) => (
-    <>
-      <div><label className="block text-sm font-medium mb-1">Name <span className="text-red-500">*</span></label>
-        <input required type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          value={f.name} onChange={e => setF(x => ({ ...x, name: e.target.value }))} /></div>
-      <div><label className="block text-sm font-medium mb-1">Description</label>
-        <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          value={f.description} onChange={e => setF(x => ({ ...x, description: e.target.value }))} /></div>
-      <div><label className="block text-sm font-medium mb-1">Base URL <span className="text-red-500">*</span></label>
-        <input required type="url" placeholder="https://api.example.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          value={f.baseUrl} onChange={e => setF(x => ({ ...x, baseUrl: e.target.value }))} /></div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Authentication</label>
-        <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"
-          value={f.authType} onChange={e => setF(x => ({ ...x, authType: e.target.value, authConfig: {} }))}>
-          {AUTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <AuthConfigFields authType={f.authType} cfg={f.authConfig} setCfg={cfg => setF(x => ({ ...x, authConfig: typeof cfg === 'function' ? cfg(x.authConfig) : cfg }))} />
-      </div>
-    </>
-  );
-
   return (
     <div>
       <div className="flex justify-between items-start mb-4">
@@ -402,9 +438,6 @@ function WebhooksTab() {
   const load = useCallback(() => listWebhooks().then(setWebhooks).catch(() => {}), []);
   useEffect(() => { load(); }, [load]);
 
-  const toggleEvent = (ev, f, setF) =>
-    setF(x => ({ ...x, events: x.events.includes(ev) ? x.events.filter(e => e !== ev) : [...x.events, ev] }));
-
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!form.events.length) return alert('Select at least one event');
@@ -445,31 +478,6 @@ function WebhooksTab() {
     const data = await getWebhookDeliveries(wh.id).catch(() => []);
     setDeliveries(data);
   };
-
-  const WhForm = ({ f, setF }) => (
-    <>
-      <div><label className="block text-sm font-medium mb-1">Name <span className="text-red-500">*</span></label>
-        <input required type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          value={f.name} onChange={e => setF(x => ({ ...x, name: e.target.value }))} /></div>
-      <div><label className="block text-sm font-medium mb-1">URL <span className="text-red-500">*</span></label>
-        <input required type="url" placeholder="https://hooks.example.com/..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          value={f.url} onChange={e => setF(x => ({ ...x, url: e.target.value }))} /></div>
-      <div><label className="block text-sm font-medium mb-1">Secret <span className="text-xs text-gray-400">(optional — used for HMAC signature in X-Webhook-Signature header)</span></label>
-        <input type="password" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder={f.has_secret ? '(leave blank to keep existing)' : ''}
-          value={f.secret} onChange={e => setF(x => ({ ...x, secret: e.target.value }))} /></div>
-      <div>
-        <label className="block text-sm font-medium mb-2">Events <span className="text-red-500">*</span></label>
-        <div className="grid grid-cols-2 gap-1">
-          {ALL_EVENTS.map(ev => (
-            <label key={ev} className="flex items-center gap-2 cursor-pointer text-sm">
-              <input type="checkbox" checked={f.events.includes(ev)} onChange={() => toggleEvent(ev, f, setF)} />
-              <code className="text-xs">{ev}</code>
-            </label>
-          ))}
-        </div>
-      </div>
-    </>
-  );
 
   return (
     <div>
