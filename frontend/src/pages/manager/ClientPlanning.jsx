@@ -115,9 +115,9 @@ export default function ClientPlanning() {
 
   // Allocation modal
   const [allocModal, setAllocModal] = useState(false);
-  const [allocForm, setAllocForm] = useState({ userId: '', percentage: '', grade: '', startDate: '', endDate: '', notes: '' });
+  const [allocForm, setAllocForm] = useState({ userId: '', percentage: '', grade: '', soldRate: '', costRate: '', startDate: '', endDate: '', notes: '' });
   const [editAllocModal, setEditAllocModal] = useState(null);
-  const [editAllocForm, setEditAllocForm] = useState({ percentage: '', grade: '', startDate: '', endDate: '', notes: '' });
+  const [editAllocForm, setEditAllocForm] = useState({ percentage: '', grade: '', soldRate: '', costRate: '', startDate: '', endDate: '', notes: '' });
 
   // Systems state
   const [systems, setSystems] = useState([]);
@@ -201,12 +201,14 @@ export default function ClientPlanning() {
         userId: parseInt(allocForm.userId),
         percentage: parseInt(allocForm.percentage),
         grade: allocForm.grade || undefined,
+        soldRate: allocForm.soldRate ? parseFloat(allocForm.soldRate) : undefined,
+        costRate: allocForm.costRate ? parseFloat(allocForm.costRate) : undefined,
         startDate: allocForm.startDate || undefined,
         endDate: allocForm.endDate || undefined,
         notes: allocForm.notes || undefined,
       });
       setAllocModal(false);
-      setAllocForm({ userId: '', percentage: '', grade: '', startDate: '', endDate: '', notes: '' });
+      setAllocForm({ userId: '', percentage: '', grade: '', soldRate: '', costRate: '', startDate: '', endDate: '', notes: '' });
       await loadAllocations(selectedClient.id);
       await loadOverview();
     } catch (err) {
@@ -218,6 +220,8 @@ export default function ClientPlanning() {
     setEditAllocForm({
       percentage: a.percentage,
       grade: a.grade || '',
+      soldRate: a.sold_rate || '',
+      costRate: a.cost_rate || '',
       startDate: a.start_date?.slice(0, 10) || '',
       endDate: a.end_date?.slice(0, 10) || '',
       notes: a.notes || '',
@@ -232,6 +236,8 @@ export default function ClientPlanning() {
       await updateAllocation(editAllocModal.id, {
         percentage: parseInt(editAllocForm.percentage),
         grade: editAllocForm.grade || null,
+        soldRate: editAllocForm.soldRate ? parseFloat(editAllocForm.soldRate) : null,
+        costRate: editAllocForm.costRate ? parseFloat(editAllocForm.costRate) : null,
         startDate: editAllocForm.startDate || null,
         endDate: editAllocForm.endDate || null,
         notes: editAllocForm.notes || undefined,
@@ -586,6 +592,18 @@ export default function ClientPlanning() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
+              <label className="block text-sm font-medium mb-1">Sold Rate</label>
+              <input type="number" min="0" step="0.01" placeholder="0.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={allocForm.soldRate} onChange={e => setAllocForm(f => ({ ...f, soldRate: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Cost Rate</label>
+              <input type="number" min="0" step="0.01" placeholder="0.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={allocForm.costRate} onChange={e => setAllocForm(f => ({ ...f, costRate: e.target.value }))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
               <label className="block text-sm font-medium mb-1">Start Date</label>
               <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 value={allocForm.startDate} onChange={e => setAllocForm(f => ({ ...f, startDate: e.target.value }))} />
@@ -686,6 +704,18 @@ export default function ClientPlanning() {
             <div>
               <label className="block text-sm font-medium mb-1">Grade</label>
               <GradePicker value={editAllocForm.grade} onChange={g => setEditAllocForm(f => ({ ...f, grade: g }))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Sold Rate</label>
+              <input type="number" min="0" step="0.01" placeholder="0.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={editAllocForm.soldRate} onChange={e => setEditAllocForm(f => ({ ...f, soldRate: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Cost Rate</label>
+              <input type="number" min="0" step="0.01" placeholder="0.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={editAllocForm.costRate} onChange={e => setEditAllocForm(f => ({ ...f, costRate: e.target.value }))} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

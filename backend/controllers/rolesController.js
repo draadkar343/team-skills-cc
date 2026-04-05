@@ -47,6 +47,8 @@ const ALL_PERMISSIONS = [
   { key: 'page.admin_roles',          label: 'Role Management',      category: 'Administration' },
   { key: 'page.admin_reports',        label: 'Reports',              category: 'Administration' },
   { key: 'page.admin_onboarding',     label: 'Onboarding Templates', category: 'Administration' },
+  // Application Delivery Manager
+  { key: 'page.change_requests',      label: 'Change Requests',      category: 'Delivery' },
 ];
 
 // GET /roles  (admin only)

@@ -83,6 +83,7 @@ function RootRedirect() {
   if (user?.role === 'administrator') return <Navigate to="/admin" replace />;
   if (user?.role === 'resourcing') return <Navigate to="/resourcing-dashboard" replace />;
   if (user?.role === 'functional_manager') return <Navigate to="/skill-approvals" replace />;
+  if (user?.role === 'application_delivery_manager') return <Navigate to="/clients" replace />;
   return <Navigate to="/dashboard" replace />;
 }
 
@@ -131,26 +132,26 @@ export default function App() {
 
       {/* Profile — all authenticated roles */}
       <Route path="/profile" element={
-        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager', 'application_delivery_manager']}>
           <AppLayout><Profile /></AppLayout>
         </ProtectedRoute>
       } />
 
       {/* Kudos — all authenticated roles */}
       <Route path="/kudos" element={
-        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager', 'application_delivery_manager']}>
           <AppLayout><KudosWall /></AppLayout>
         </ProtectedRoute>
       } />
 
       {/* Leave — all authenticated roles */}
       <Route path="/my-leave" element={
-        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager', 'application_delivery_manager']}>
           <AppLayout><MyLeave /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/team-calendar" element={
-        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager', 'application_delivery_manager']}>
           <AppLayout><TeamLeaveCalendar /></AppLayout>
         </ProtectedRoute>
       } />
@@ -191,14 +192,14 @@ export default function App() {
 
       {/* Manager — client planning */}
       <Route path="/client-planning" element={
-        <ProtectedRoute allowedRoles={['manager', 'administrator']}>
+        <ProtectedRoute allowedRoles={['manager', 'administrator', 'application_delivery_manager']}>
           <AppLayout><ClientPlanning /></AppLayout>
         </ProtectedRoute>
       } />
 
       {/* Clients — detailed client view */}
       <Route path="/clients" element={
-        <ProtectedRoute allowedRoles={['manager', 'administrator', 'resourcing']}>
+        <ProtectedRoute allowedRoles={['manager', 'administrator', 'resourcing', 'application_delivery_manager']}>
           <AppLayout><ClientsPage /></AppLayout>
         </ProtectedRoute>
       } />
@@ -323,14 +324,14 @@ export default function App() {
 
       {/* Org chart — all roles */}
       <Route path="/org-chart" element={
-        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager', 'application_delivery_manager']}>
           <AppLayout><OrgChart /></AppLayout>
         </ProtectedRoute>
       } />
 
       {/* Directory — all roles */}
       <Route path="/directory" element={
-        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager']}>
+        <ProtectedRoute allowedRoles={['employee', 'manager', 'administrator', 'resourcing', 'functional_manager', 'application_delivery_manager']}>
           <AppLayout><EmployeeDirectory /></AppLayout>
         </ProtectedRoute>
       } />

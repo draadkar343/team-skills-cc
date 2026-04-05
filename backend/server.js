@@ -31,6 +31,7 @@ const directoryRoutes   = require('./routes/directoryRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./config/db');
 const { scheduleBirthdayJob } = require('./services/birthdayJob');
+const { scheduleCrReminderJob } = require('./services/crReminderJob');
 
 const app = express();
 
@@ -240,10 +241,35 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create talent_candidates:', err.message));
 
-// Add grade column to client_allocations (A/B/C seniority grade)
+// Add grade, sold_rate and cost_rate columns to client_allocations
 db.query(`
   ALTER TABLE client_allocations ADD COLUMN IF NOT EXISTS grade CHAR(1) CHECK (grade IN ('A','B','C'))
 `).catch(err => console.error('[startup] Failed to add grade column:', err.message));
+db.query(`
+  ALTER TABLE client_allocations ADD COLUMN IF NOT EXISTS sold_rate NUMERIC(10,2)
+`).catch(err => console.error('[startup] Failed to add sold_rate column:', err.message));
+db.query(`
+  ALTER TABLE client_allocations ADD COLUMN IF NOT EXISTS cost_rate NUMERIC(10,2)
+`).catch(err => console.error('[startup] Failed to add cost_rate column:', err.message));
+
+// Client change requests
+db.query(`
+  CREATE TABLE IF NOT EXISTS client_change_requests (
+    id             SERIAL PRIMARY KEY,
+    client_id      INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    title          VARCHAR(255) NOT NULL,
+    description    TEXT,
+    quoted_amount  NUMERIC(15,2),
+    currency       CHAR(3) NOT NULL DEFAULT 'USD',
+    status         VARCHAR(30) NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending','approved','rejected','cancelled')),
+    expiry_date    DATE,
+    reminder_sent  BOOLEAN NOT NULL DEFAULT FALSE,
+    created_by     INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => console.error('[startup] Failed to create client_change_requests:', err.message));
 
 // Kudos / Recognition
 db.query(`
@@ -319,6 +345,7 @@ db.query(`
 // Extend user_role ENUM with new values (safe to run every start)
 db.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'resourcing'`).catch(() => {});
 db.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'functional_manager'`).catch(() => {});
+db.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'application_delivery_manager'`).catch(() => {});
 
 // Add wbs_element and client_name columns to timesheet_entries if they don't exist
 db.query(`ALTER TABLE timesheet_entries ADD COLUMN IF NOT EXISTS wbs_element VARCHAR(100)`)
@@ -338,11 +365,12 @@ db.query(`
   )
 `).then(() => db.query(`
   INSERT INTO system_roles (name, display_name, description, color) VALUES
-    ('employee',           'Employee',           'Standard employee — personal skills, timesheets and leave', '#3B82F6'),
-    ('manager',            'Manager',            'Team manager with approval rights and squad management', '#8B5CF6'),
-    ('functional_manager', 'Functional Manager', 'Cross-squad manager with approval access but no squad ownership', '#EC4899'),
-    ('resourcing',         'Resourcing',         'Resourcing team — talent pipeline and allocation overview', '#F59E0B'),
-    ('administrator',      'Administrator',      'System administrator with full access to all features and settings', '#EF4444')
+    ('employee',                    'Employee',                    'Standard employee — personal skills, timesheets and leave', '#3B82F6'),
+    ('manager',                     'Manager',                     'Team manager with approval rights and squad management', '#8B5CF6'),
+    ('functional_manager',          'Functional Manager',          'Cross-squad manager with approval access but no squad ownership', '#EC4899'),
+    ('resourcing',                  'Resourcing',                  'Resourcing team — talent pipeline and allocation overview', '#F59E0B'),
+    ('administrator',               'Administrator',               'System administrator with full access to all features and settings', '#EF4444'),
+    ('application_delivery_manager','Application Delivery Manager','Manages client change requests, quotes and delivery oversight', '#10B981')
   ON CONFLICT (name) DO NOTHING
 `)).then(() => db.query(`
   CREATE TABLE IF NOT EXISTS role_permissions (
@@ -388,7 +416,14 @@ db.query(`
     ('administrator','page.admin_reports'),
     ('administrator','page.admin_onboarding'),
     ('administrator','page.directory'),
-    ('administrator','page.org_chart')
+    ('administrator','page.org_chart'),
+    ('application_delivery_manager','page.clients'),
+    ('application_delivery_manager','page.client_planning'),
+    ('application_delivery_manager','page.my_leave'),
+    ('application_delivery_manager','page.team_calendar'),
+    ('application_delivery_manager','page.directory'),
+    ('application_delivery_manager','page.org_chart'),
+    ('application_delivery_manager','page.kudos')
   ON CONFLICT DO NOTHING
 `)).catch(err => console.error('[startup] Failed to create roles/permissions tables:', err.message));
 
@@ -519,4 +554,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`API running on port ${PORT}`);
   scheduleBirthdayJob();
+  scheduleCrReminderJob();
 });

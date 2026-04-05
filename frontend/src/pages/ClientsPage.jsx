@@ -8,6 +8,7 @@ import {
   getClientSystems, addClientSystem, updateClientSystem, deleteClientSystem,
   getClientRoadmap, addRoadmapItem, updateRoadmapItem, deleteRoadmapItem,
   getClientContracts, addContract, updateContract, deleteContract,
+  getChangeRequests, addChangeRequest, updateChangeRequest, deleteChangeRequest,
 } from '../api/clientApi';
 
 const CONTRACT_TYPES = [
@@ -67,6 +68,14 @@ const BLANK_CLIENT   = { name: '', description: '', contactName: '', contactEmai
 const BLANK_SYSTEM   = { name: '', version: '', vendor: '', environment: 'production', status: 'active', supportExpiry: '', description: '', notes: '' };
 const BLANK_ROADMAP  = { title: '', description: '', targetDate: '', status: 'planned', priority: 'medium' };
 const BLANK_CONTRACT = { title: '', contractNumber: '', type: '', startDate: '', endDate: '', value: '', currency: 'USD', status: 'active', description: '', notes: '' };
+const BLANK_CR       = { title: '', description: '', quotedAmount: '', currency: 'USD', status: 'pending', expiryDate: '' };
+
+const CR_STATUS_STYLES = {
+  pending:   'bg-amber-100 text-amber-700',
+  approved:  'bg-green-100 text-green-700',
+  rejected:  'bg-red-100 text-red-600',
+  cancelled: 'bg-gray-100 text-gray-500',
+};
 
 export default function ClientsPage() {
   const { user } = useAuth();
@@ -81,6 +90,7 @@ export default function ClientsPage() {
   const [systems, setSystems]         = useState([]);
   const [roadmap, setRoadmap]         = useState([]);
   const [contracts, setContracts]     = useState([]);
+  const [changeRequests, setChangeRequests] = useState([]);
 
   // Client modal
   const [clientModal, setClientModal] = useState(false);
@@ -102,7 +112,13 @@ export default function ClientsPage() {
   const [editingContract, setEditingContract] = useState(null);
   const [contractForm, setContractForm]     = useState(BLANK_CONTRACT);
 
-  const canManage = user?.role === 'administrator' ||
+  // Change Request modal
+  const [crModal, setCrModal]     = useState(false);
+  const [editingCr, setEditingCr] = useState(null);
+  const [crForm, setCrForm]       = useState(BLANK_CR);
+
+  const isAdm = user?.role === 'application_delivery_manager';
+  const canManage = user?.role === 'administrator' || isAdm ||
     (user?.role === 'manager' && selected?.created_by === user?.id);
 
   // ── Load ────────────────────────────────────────────────────────────────
@@ -110,16 +126,18 @@ export default function ClientsPage() {
   const loadClients = () => listClients().then(setClients).catch(() => {});
 
   const loadDetails = async (clientId) => {
-    const [allocs, sys, road, contr] = await Promise.all([
+    const [allocs, sys, road, contr, crs] = await Promise.all([
       getClientAllocations(clientId).catch(() => []),
       getClientSystems(clientId).catch(() => []),
       getClientRoadmap(clientId).catch(() => []),
       getClientContracts(clientId).catch(() => []),
+      getChangeRequests(clientId).catch(() => []),
     ]);
     setAllocations(allocs);
     setSystems(sys);
     setRoadmap(road);
     setContracts(contr);
+    setChangeRequests(crs);
   };
 
   useEffect(() => { loadClients(); }, []);
@@ -267,6 +285,44 @@ export default function ClientsPage() {
     setContracts(await getClientContracts(selected.id));
   };
 
+  // ── Change Request CRUD ─────────────────────────────────────────────────
+
+  const openNewCr = () => { setEditingCr(null); setCrForm(BLANK_CR); setCrModal(true); };
+  const openEditCr = (cr) => {
+    setEditingCr(cr);
+    setCrForm({
+      title: cr.title, description: cr.description || '',
+      quotedAmount: cr.quoted_amount || '', currency: cr.currency || 'USD',
+      status: cr.status, expiryDate: cr.expiry_date?.slice(0, 10) || '',
+    });
+    setCrModal(true);
+  };
+
+  const saveCr = async () => {
+    setLoading(true);
+    try {
+      const payload = {
+        ...crForm,
+        quotedAmount: crForm.quotedAmount ? parseFloat(crForm.quotedAmount) : undefined,
+        expiryDate: crForm.expiryDate || undefined,
+      };
+      if (editingCr) {
+        await updateChangeRequest(editingCr.id, payload);
+      } else {
+        await addChangeRequest(selected.id, payload);
+      }
+      setChangeRequests(await getChangeRequests(selected.id));
+      setCrModal(false);
+    } catch (err) { alert(err.response?.data?.error || 'Failed to save change request'); }
+    finally { setLoading(false); }
+  };
+
+  const removeCr = async (id) => {
+    if (!window.confirm('Delete this change request?')) return;
+    await deleteChangeRequest(id);
+    setChangeRequests(await getChangeRequests(selected.id));
+  };
+
   // ── Filtered clients ────────────────────────────────────────────────────
 
   const filtered = clients.filter(c =>
@@ -280,7 +336,7 @@ export default function ClientsPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Clients</h1>
-        {(user?.role === 'manager' || user?.role === 'administrator') && (
+        {(user?.role === 'manager' || user?.role === 'administrator' || isAdm) && (
           <Button onClick={openNewClient}>+ New Client</Button>
         )}
       </div>
@@ -347,8 +403,9 @@ export default function ClientsPage() {
               {[
                 { key: 'overview', label: 'Overview' },
                 { key: 'systems',  label: 'System Landscape' },
-                { key: 'roadmap',  label: 'Roadmap' },
-                { key: 'contracts', label: 'Contracts' },
+                { key: 'roadmap',         label: 'Roadmap' },
+                { key: 'contracts',       label: 'Contracts' },
+                { key: 'change_requests', label: 'Change Requests' },
               ].map(({ key, label }) => (
                 <button
                   key={key}
@@ -395,9 +452,10 @@ export default function ClientsPage() {
                         <thead>
                           <tr className="text-left text-gray-500 border-b">
                             <th className="pb-2 pr-4">Name</th>
-                            <th className="pb-2 pr-4">Email</th>
                             <th className="pb-2 pr-4">Allocation</th>
                             <th className="pb-2 pr-4">Grade</th>
+                            <th className="pb-2 pr-4">Sold Rate</th>
+                            <th className="pb-2 pr-4">Cost Rate</th>
                             <th className="pb-2 pr-4">Start</th>
                             <th className="pb-2">End</th>
                           </tr>
@@ -406,11 +464,12 @@ export default function ClientsPage() {
                           {allocations.map(a => (
                             <tr key={a.id} className="border-b last:border-0">
                               <td className="py-2 pr-4 font-medium">{a.first_name} {a.last_name}</td>
-                              <td className="py-2 pr-4 text-gray-500">{a.email}</td>
                               <td className="py-2 pr-4">
                                 <span className="font-semibold text-blue-700">{a.percentage}%</span>
                               </td>
                               <td className="py-2 pr-4">{a.grade || '—'}</td>
+                              <td className="py-2 pr-4 text-gray-700">{a.sold_rate ? Number(a.sold_rate).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'}</td>
+                              <td className="py-2 pr-4 text-gray-700">{a.cost_rate ? Number(a.cost_rate).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'}</td>
                               <td className="py-2 pr-4 text-gray-500">{a.start_date?.slice(0, 10) || '—'}</td>
                               <td className="py-2 text-gray-500">{a.end_date?.slice(0, 10) || '—'}</td>
                             </tr>
@@ -561,6 +620,72 @@ export default function ClientsPage() {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── CHANGE REQUESTS ── */}
+              {tab === 'change_requests' && (
+                <div>
+                  {canManage && (
+                    <div className="mb-4">
+                      <Button onClick={openNewCr}>+ Add Change Request</Button>
+                    </div>
+                  )}
+                  {changeRequests.length === 0 ? (
+                    <p className="text-sm text-gray-400">No change requests recorded.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {changeRequests.map(cr => {
+                        const expiryDate = cr.expiry_date ? cr.expiry_date.slice(0, 10) : null;
+                        const today = new Date().toISOString().slice(0, 10);
+                        const sevenDays = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+                        const isExpiringSoon = expiryDate && expiryDate <= sevenDays && expiryDate >= today && cr.status === 'pending';
+                        const isExpired = expiryDate && expiryDate < today && cr.status === 'pending';
+                        return (
+                          <div key={cr.id} className={`border rounded-xl p-4 ${isExpired ? 'border-red-300 bg-red-50' : isExpiringSoon ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}`}>
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                  <span className="font-semibold text-gray-900">{cr.title}</span>
+                                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium capitalize ${CR_STATUS_STYLES[cr.status] || 'bg-gray-100 text-gray-500'}`}>
+                                    {cr.status}
+                                  </span>
+                                  {isExpiringSoon && (
+                                    <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-amber-200 text-amber-800">Expiring Soon</span>
+                                  )}
+                                  {isExpired && (
+                                    <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-red-200 text-red-800">Quote Expired</span>
+                                  )}
+                                </div>
+                                {cr.description && (
+                                  <p className="text-sm text-gray-500 mt-1">{cr.description}</p>
+                                )}
+                                <div className="flex gap-4 mt-2 flex-wrap">
+                                  {cr.quoted_amount && (
+                                    <p className="text-sm font-medium text-gray-800">
+                                      {cr.currency} {Number(cr.quoted_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </p>
+                                  )}
+                                  {expiryDate && (
+                                    <p className={`text-xs ${isExpired ? 'text-red-600 font-medium' : isExpiringSoon ? 'text-amber-700 font-medium' : 'text-gray-400'}`}>
+                                      Quote expiry: {expiryDate}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-gray-400">By: {cr.created_by_name}</p>
+                                </div>
+                              </div>
+                              {canManage && (
+                                <div className="flex gap-2 flex-shrink-0">
+                                  <button className="text-blue-500 hover:text-blue-700 text-xs" onClick={() => openEditCr(cr)}>Edit</button>
+                                  <button className="text-red-500 hover:text-red-700 text-xs" onClick={() => removeCr(cr.id)}>Delete</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -759,6 +884,50 @@ export default function ClientsPage() {
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="secondary" onClick={() => setContractModal(false)}>Cancel</Button>
             <Button loading={loading} onClick={saveContract} disabled={!contractForm.title.trim()}>Save</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── CHANGE REQUEST MODAL ── */}
+      <Modal open={crModal} onClose={() => setCrModal(false)} title={editingCr ? 'Edit Change Request' : 'Add Change Request'}>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">Title <span className="text-red-500">*</span></label>
+            <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={crForm.title} onChange={e => setCrForm(f => ({ ...f, title: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Description</label>
+            <textarea rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={crForm.description} onChange={e => setCrForm(f => ({ ...f, description: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium mb-1">Quoted Amount</label>
+              <input type="number" min="0" step="0.01" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={crForm.quotedAmount} onChange={e => setCrForm(f => ({ ...f, quotedAmount: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Currency</label>
+              <input maxLength={3} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase" value={crForm.currency} onChange={e => setCrForm(f => ({ ...f, currency: e.target.value.toUpperCase() }))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Status</label>
+              <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={crForm.status} onChange={e => setCrForm(f => ({ ...f, status: e.target.value }))}>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Quote Expiry Date</label>
+              <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={crForm.expiryDate} onChange={e => setCrForm(f => ({ ...f, expiryDate: e.target.value }))} />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400">A reminder will be sent to Application Delivery Managers 7 days before the quote expiry date.</p>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button variant="secondary" onClick={() => setCrModal(false)}>Cancel</Button>
+            <Button loading={loading} onClick={saveCr} disabled={!crForm.title.trim()}>Save</Button>
           </div>
         </div>
       </Modal>

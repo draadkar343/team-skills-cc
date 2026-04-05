@@ -11,9 +11,9 @@ async function isSquadMember(managerId, userId) {
   return rows.length > 0;
 }
 
-// Helper: verify manager created the client or is admin
+// Helper: verify manager created the client or is admin/ADM
 async function canManageClient(req, clientId) {
-  if (req.user.role === 'administrator') return true;
+  if (req.user.role === 'administrator' || req.user.role === 'application_delivery_manager') return true;
   const { rows } = await db.query(
     'SELECT id FROM clients WHERE id = $1 AND created_by = $2',
     [clientId, req.user.id]
@@ -27,7 +27,7 @@ async function canManageClient(req, clientId) {
 exports.listClients = async (req, res, next) => {
   try {
     let rows;
-    if (req.user.role === 'administrator' || req.user.role === 'resourcing') {
+    if (req.user.role === 'administrator' || req.user.role === 'resourcing' || req.user.role === 'application_delivery_manager') {
       ({ rows } = await db.query(
         `SELECT c.*, u.first_name || ' ' || u.last_name AS created_by_name
          FROM clients c
@@ -131,7 +131,7 @@ exports.getSquadOverview = async (req, res, next) => {
   try {
     let memberRows, allocRows;
 
-    if (req.user.role === 'administrator' || req.user.role === 'resourcing') {
+    if (req.user.role === 'administrator' || req.user.role === 'resourcing' || req.user.role === 'application_delivery_manager') {
       ({ rows: memberRows } = await db.query(
         `SELECT u.id, u.first_name || ' ' || u.last_name AS name, u.email
          FROM users u WHERE u.role = 'employee' AND u.is_active = true ORDER BY name`
@@ -186,7 +186,7 @@ exports.getSquadOverview = async (req, res, next) => {
 // POST /clients/:id/allocations
 exports.addAllocation = async (req, res, next) => {
   try {
-    const { userId, percentage, startDate, endDate, notes, grade } = req.body;
+    const { userId, percentage, startDate, endDate, notes, grade, soldRate, costRate } = req.body;
     if (!userId || percentage === undefined) {
       return res.status(400).json({ error: 'userId and percentage are required' });
     }
@@ -203,9 +203,10 @@ exports.addAllocation = async (req, res, next) => {
     }
 
     const { rows } = await db.query(
-      `INSERT INTO client_allocations (client_id, user_id, percentage, start_date, end_date, notes, grade, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [req.params.id, userId, percentage, startDate || null, endDate || null, notes || null, grade || null, req.user.id]
+      `INSERT INTO client_allocations (client_id, user_id, percentage, start_date, end_date, notes, grade, sold_rate, cost_rate, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [req.params.id, userId, percentage, startDate || null, endDate || null, notes || null, grade || null,
+       soldRate || null, costRate || null, req.user.id]
     );
     const { rows: detail } = await db.query(
       'SELECT first_name, last_name, email FROM users WHERE id = $1',
@@ -221,7 +222,7 @@ exports.addAllocation = async (req, res, next) => {
 // PATCH /allocations/:id
 exports.updateAllocation = async (req, res, next) => {
   try {
-    const { percentage, startDate, endDate, notes, grade } = req.body;
+    const { percentage, startDate, endDate, notes, grade, soldRate, costRate } = req.body;
     if (percentage !== undefined && (percentage <= 0 || percentage > 100)) {
       return res.status(400).json({ error: 'Percentage must be between 1 and 100' });
     }
@@ -229,7 +230,7 @@ exports.updateAllocation = async (req, res, next) => {
       return res.status(400).json({ error: 'Grade must be A, B, or C' });
     }
 
-    // Verify manager owns this allocation (via squad) or is admin
+    // Verify manager owns this allocation (via squad) or is admin/ADM
     if (req.user.role === 'manager') {
       const { rows: check } = await db.query(
         `SELECT ca.id FROM client_allocations ca
@@ -248,11 +249,15 @@ exports.updateAllocation = async (req, res, next) => {
         end_date   = CASE WHEN $4::boolean THEN $5::date ELSE end_date END,
         notes      = COALESCE($6, notes),
         grade      = CASE WHEN $8::boolean THEN $9::char ELSE grade END,
+        sold_rate  = CASE WHEN $10::boolean THEN $11::numeric ELSE sold_rate END,
+        cost_rate  = CASE WHEN $12::boolean THEN $13::numeric ELSE cost_rate END,
         updated_at = NOW()
        WHERE id = $7 RETURNING *`,
       [percentage, startDate !== undefined, startDate || null,
        endDate !== undefined, endDate || null, notes, req.params.id,
-       grade !== undefined, grade || null]
+       grade !== undefined, grade || null,
+       soldRate !== undefined, soldRate || null,
+       costRate !== undefined, costRate || null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Allocation not found' });
     res.json(rows[0]);
@@ -524,5 +529,84 @@ exports.deleteContract = async (req, res, next) => {
     if (!await canManageClient(req, contract[0].client_id)) return res.status(403).json({ error: 'Access denied' });
     await db.query('DELETE FROM client_contracts WHERE id = $1', [req.params.id]);
     res.json({ message: 'Contract deleted' });
+  } catch (err) { next(err); }
+};
+
+// ── CHANGE REQUESTS ──────────────────────────────────────────────────────────
+
+const VALID_CR_STATUSES = ['pending', 'approved', 'rejected', 'cancelled'];
+
+// GET /clients/:id/change-requests
+exports.getChangeRequests = async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT ccr.*, u.first_name || ' ' || u.last_name AS created_by_name
+       FROM client_change_requests ccr
+       LEFT JOIN users u ON u.id = ccr.created_by
+       WHERE ccr.client_id = $1
+       ORDER BY ccr.expiry_date NULLS LAST, ccr.created_at DESC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { next(err); }
+};
+
+// POST /clients/:id/change-requests
+exports.addChangeRequest = async (req, res, next) => {
+  try {
+    const { title, description, quotedAmount, currency, status, expiryDate } = req.body;
+    if (!title) return res.status(400).json({ error: 'title required' });
+    if (status && !VALID_CR_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    if (!await canManageClient(req, req.params.id)) return res.status(403).json({ error: 'Access denied' });
+    const { rows } = await db.query(
+      `INSERT INTO client_change_requests
+         (client_id, title, description, quoted_amount, currency, status, expiry_date, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [req.params.id, title, description || null,
+       quotedAmount || null, currency || 'USD', status || 'pending',
+       expiryDate || null, req.user.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { next(err); }
+};
+
+// PATCH /clients/change-requests/:id
+exports.updateChangeRequest = async (req, res, next) => {
+  try {
+    const { title, description, quotedAmount, currency, status, expiryDate } = req.body;
+    if (status !== undefined && !VALID_CR_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    const { rows: cr } = await db.query(
+      'SELECT client_id FROM client_change_requests WHERE id = $1', [req.params.id]
+    );
+    if (!cr.length) return res.status(404).json({ error: 'Change request not found' });
+    if (!await canManageClient(req, cr[0].client_id)) return res.status(403).json({ error: 'Access denied' });
+    const { rows } = await db.query(
+      `UPDATE client_change_requests SET
+        title         = COALESCE($1, title),
+        description   = COALESCE($2, description),
+        quoted_amount = COALESCE($3, quoted_amount),
+        currency      = COALESCE($4, currency),
+        status        = COALESCE($5, status),
+        expiry_date   = CASE WHEN $6::boolean THEN $7::date ELSE expiry_date END,
+        reminder_sent = CASE WHEN $6::boolean THEN false ELSE reminder_sent END,
+        updated_at    = NOW()
+       WHERE id = $8 RETURNING *`,
+      [title, description, quotedAmount || null, currency, status,
+       expiryDate !== undefined, expiryDate || null, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { next(err); }
+};
+
+// DELETE /clients/change-requests/:id
+exports.deleteChangeRequest = async (req, res, next) => {
+  try {
+    const { rows: cr } = await db.query(
+      'SELECT client_id FROM client_change_requests WHERE id = $1', [req.params.id]
+    );
+    if (!cr.length) return res.status(404).json({ error: 'Change request not found' });
+    if (!await canManageClient(req, cr[0].client_id)) return res.status(403).json({ error: 'Access denied' });
+    await db.query('DELETE FROM client_change_requests WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Change request deleted' });
   } catch (err) { next(err); }
 };

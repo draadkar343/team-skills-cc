@@ -120,6 +120,18 @@ export default function Sidebar() {
         </>
       )}
 
+      {user?.role === 'application_delivery_manager' && (
+        <>
+          {can('page.clients')         && <NavLink to="/clients"          className={linkClass}>Clients</NavLink>}
+          {can('page.client_planning') && <NavLink to="/client-planning"  className={linkClass}>Client Planning</NavLink>}
+          {can('page.my_leave')        && <NavLink to="/my-leave"         className={linkClass}>My Leave</NavLink>}
+          {can('page.team_calendar')   && <NavLink to="/team-calendar"    className={linkClass}>Team Calendar</NavLink>}
+          {can('page.kudos')           && <NavLink to="/kudos"            className={linkClass}>Recognition</NavLink>}
+          {can('page.directory')       && <NavLink to="/directory"        className={linkClass}>Directory</NavLink>}
+          {can('page.org_chart')       && <NavLink to="/org-chart"        className={linkClass}>Org Chart</NavLink>}
+        </>
+      )}
+
       <hr className="my-2 border-gray-200 dark:border-gray-700" />
       <NavLink to="/profile" className={linkClass}>My Profile</NavLink>
     </aside>

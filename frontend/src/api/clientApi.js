@@ -32,3 +32,9 @@ export const getClientContracts = (clientId) => api.get(`/clients/${clientId}/co
 export const addContract        = (clientId, data) => api.post(`/clients/${clientId}/contracts`, data).then(r => r.data);
 export const updateContract     = (id, data) => api.patch(`/clients/contracts/${id}`, data).then(r => r.data);
 export const deleteContract     = (id) => api.delete(`/clients/contracts/${id}`).then(r => r.data);
+
+// Change Requests
+export const getChangeRequests    = (clientId) => api.get(`/clients/${clientId}/change-requests`).then(r => r.data);
+export const addChangeRequest     = (clientId, data) => api.post(`/clients/${clientId}/change-requests`, data).then(r => r.data);
+export const updateChangeRequest  = (id, data) => api.patch(`/clients/change-requests/${id}`, data).then(r => r.data);
+export const deleteChangeRequest  = (id) => api.delete(`/clients/change-requests/${id}`).then(r => r.data);
