@@ -432,6 +432,18 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create client_contracts:', err.message));
 
+// Job role SMEs
+db.query(`
+  CREATE TABLE IF NOT EXISTS job_role_smes (
+    id          SERIAL PRIMARY KEY,
+    job_role_id INTEGER NOT NULL REFERENCES job_roles(id) ON DELETE CASCADE,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_by  INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (job_role_id, user_id)
+  )
+`).catch(err => console.error('[startup] Failed to create job_role_smes:', err.message));
+
 // Onboarding checklist tables
 db.query(`
   CREATE TABLE IF NOT EXISTS onboarding_templates (
