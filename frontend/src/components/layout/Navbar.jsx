@@ -28,14 +28,22 @@ export default function Navbar() {
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const [config, setConfig] = useState({ company_name: { value: 'Employee Portal' }, company_logo: { value: null } });
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     getConfig().then(setConfig).catch(() => {});
   }, []);
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleLogout = () => {
+    setLoggingOut(true);
+    setTimeout(() => { logout(); navigate('/login'); }, 400);
+  };
 
   return (
+    <>
+    {loggingOut && (
+      <div className="fixed inset-0 z-50 bg-black animate-fade-out-black pointer-events-none" />
+    )}
     <nav className="bg-blue-700 text-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
         <div className="flex items-center gap-3">
@@ -68,5 +76,6 @@ export default function Navbar() {
         </div>
       </div>
     </nav>
+    </>
   );
 }

@@ -11,7 +11,9 @@ export default function Login() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [errorKey, setErrorKey] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false); // fade-out overlay
 
   const [loginBg, setLoginBg] = useState(null);
 
@@ -30,12 +32,17 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await login(form.email, form.password);
-      if (user.role === 'administrator') navigate('/admin');
-      else if (user.role === 'resourcing') navigate('/resourcing');
-      else if (user.role === 'functional_manager') navigate('/skill-approvals');
-      else navigate('/dashboard');
+      // Fade to destination before navigating
+      setLoggingIn(true);
+      setTimeout(() => {
+        if (user.role === 'administrator') navigate('/admin');
+        else if (user.role === 'resourcing') navigate('/resourcing');
+        else if (user.role === 'functional_manager') navigate('/skill-approvals');
+        else navigate('/dashboard');
+      }, 400);
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
+      setErrorKey(k => k + 1);
     } finally {
       setLoading(false);
     }
@@ -60,6 +67,12 @@ export default function Login() {
       style={loginBg ? { backgroundImage: `url(${loginBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
     >
       {loginBg && <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />}
+
+      {/* Fade-out overlay on successful login */}
+      {loggingIn && (
+        <div className="fixed inset-0 z-50 bg-black animate-fade-out-black pointer-events-none" />
+      )}
+
       <button
         onClick={toggle}
         className="fixed top-4 right-4 z-10 p-2 rounded-lg bg-white dark:bg-gray-700 shadow text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
@@ -77,7 +90,7 @@ export default function Login() {
           </svg>
         )}
       </button>
-      <div className="relative z-10 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm">
+      <div className="relative z-10 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm animate-auth-card-in">
         <h1 className="text-2xl font-bold text-blue-700 dark:text-blue-400 mb-2 text-center">Employee Portal</h1>
 
         {!showForgot ? (
@@ -85,7 +98,7 @@ export default function Login() {
             <p className="text-sm text-gray-500 text-center mb-6">Sign in to your account</p>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{error}</div>
+              <div key={errorKey} className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 animate-shake">{error}</div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -121,8 +134,14 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
               >
+                {loading && (
+                  <svg className="w-4 h-4 animate-spin-fast" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                )}
                 {loading ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
