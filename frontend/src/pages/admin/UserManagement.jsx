@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { listUsers, createUser, updateUser, deleteUser, permanentlyDeleteUser, resetUserPassword, bulkImportUsers } from '../../api/adminApi';
 import { getJobRoles } from '../../api/jobRoleApi';
+import { listRoles } from '../../api/rolesApi';
 import { COUNTRIES } from '../../utils/countries';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
@@ -11,6 +12,7 @@ const emptyForm = { email: '', password: '', firstName: '', lastName: '', role: 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [jobRoles, setJobRoles] = useState([]);
+  const [systemRoles, setSystemRoles] = useState([]);
   const [modal, setModal] = useState(null); // null | 'create' | 'edit' | 'reset'
   const [form, setForm] = useState(emptyForm);
   const [target, setTarget] = useState(null);
@@ -24,7 +26,7 @@ export default function UserManagement() {
   const [deleteTarget, setDeleteTarget] = useState(null); // user to permanently delete
   const [deleteError, setDeleteError] = useState('');
 
-  const load = () => Promise.all([listUsers(), getJobRoles()]).then(([u, jr]) => { setUsers(u); setJobRoles(jr); }).catch(() => {});
+  const load = () => Promise.all([listUsers(), getJobRoles(), listRoles()]).then(([u, jr, rl]) => { setUsers(u); setJobRoles(jr); setSystemRoles(rl.roles || []); }).catch(() => {});
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setForm(emptyForm); setError(''); setModal('create'); };
@@ -111,7 +113,9 @@ export default function UserManagement() {
     } finally { setBulkLoading(false); }
   };
 
-  const roleBadge = { employee: 'bg-gray-100 text-gray-600', manager: 'bg-blue-100 text-blue-700', administrator: 'bg-purple-100 text-purple-700', resourcing: 'bg-teal-100 text-teal-700', functional_manager: 'bg-orange-100 text-orange-700' };
+  const roleMap = Object.fromEntries(systemRoles.map(r => [r.name, r]));
+  const getRoleLabel = (roleName) => roleMap[roleName]?.display_name || roleName.replace(/_/g, ' ');
+  const getRoleColor = (roleName) => roleMap[roleName]?.color || '#6B7280';
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -142,8 +146,9 @@ export default function UserManagement() {
                 <td className="p-4 text-gray-500">{u.email}</td>
                 <td className="p-4 text-gray-500 text-sm">{u.jobRoleName || '-'}</td>
                 <td className="p-4">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${roleBadge[u.role]}`}>
-                    {u.role === 'functional_manager' ? 'Functional Manager' : u.role}
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold text-white"
+                    style={{ backgroundColor: getRoleColor(u.role) }}>
+                    {getRoleLabel(u.role)}
                   </span>
                 </td>
                 <td className="p-4">
@@ -224,11 +229,9 @@ export default function UserManagement() {
             <label className="block text-sm font-medium mb-1">Role</label>
             <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
               value={form.role} onChange={e => setForm(x => ({ ...x, role: e.target.value }))}>
-              <option value="employee">Employee</option>
-              <option value="manager">Manager</option>
-              <option value="functional_manager">Functional Manager</option>
-              <option value="administrator">Administrator</option>
-              <option value="resourcing">Resourcing</option>
+              {systemRoles.map(r => (
+                <option key={r.name} value={r.name}>{r.display_name}</option>
+              ))}
             </select>
           </div>
           <div>
