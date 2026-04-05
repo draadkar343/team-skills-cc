@@ -134,8 +134,7 @@ export default function RoleManagement() {
       </div>
 
       {/* ── Edit Role Details Modal ── */}
-      {editRole && (
-        <Modal title={`Edit — ${editRole.display_name}`} onClose={() => setEditRole(null)}>
+      <Modal open={!!editRole} title={editRole ? `Edit — ${editRole.display_name}` : ''} onClose={() => setEditRole(null)}>
           <form onSubmit={handleSaveDetails} className="space-y-4">
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div>
@@ -174,11 +173,9 @@ export default function RoleManagement() {
             </div>
           </form>
         </Modal>
-      )}
 
       {/* ── Edit Permissions Modal ── */}
-      {permsRole && (
-        <Modal title={`Permissions — ${permsRole.display_name}`} onClose={() => setPermsRole(null)}>
+      <Modal open={!!permsRole} title={permsRole ? `Permissions — ${permsRole.display_name}` : ''} onClose={() => setPermsRole(null)}>
           <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
             {error && <p className="text-sm text-red-600">{error}</p>}
             {Object.entries(categories).map(([cat, perms]) => {
@@ -222,7 +219,6 @@ export default function RoleManagement() {
             </div>
           </div>
         </Modal>
-      )}
     </div>
   );
 }
