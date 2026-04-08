@@ -28,8 +28,8 @@ export default function Sidebar() {
   const { can } = usePermissions();
 
   return (
-    <aside className="w-56 h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto">
-      <nav className="flex-1 py-3 flex flex-col gap-0.5">
+    <aside className="w-56 h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+      <nav className="flex-1 py-3 flex flex-col gap-0.5 overflow-y-auto">
 
         {user?.role === 'employee' && (
           <>
