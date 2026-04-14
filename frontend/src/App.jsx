@@ -66,7 +66,7 @@ import EmployeeDirectory from './pages/shared/EmployeeDirectory';
 
 function AppLayout({ children }) {
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col animate-page-enter">
       <Navbar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />

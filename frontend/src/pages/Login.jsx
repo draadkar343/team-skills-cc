@@ -13,7 +13,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [errorKey, setErrorKey] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [loggingIn, setLoggingIn] = useState(false); // fade-out overlay
+  const [morphing, setMorphing] = useState(false);
 
   const [loginBg, setLoginBg] = useState(null);
 
@@ -32,14 +32,13 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await login(form.email, form.password);
-      // Fade to destination before navigating
-      setLoggingIn(true);
-      setTimeout(() => {
-        if (user.role === 'administrator') navigate('/admin');
-        else if (user.role === 'resourcing') navigate('/resourcing');
-        else if (user.role === 'functional_manager') navigate('/skill-approvals');
-        else navigate('/dashboard');
-      }, 400);
+      setMorphing(true);
+      const dest =
+        user.role === 'administrator'      ? '/admin' :
+        user.role === 'resourcing'         ? '/resourcing' :
+        user.role === 'functional_manager' ? '/skill-approvals' :
+        '/dashboard';
+      setTimeout(() => navigate(dest), 600);
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
       setErrorKey(k => k + 1);
@@ -63,15 +62,10 @@ export default function Login() {
 
   return (
     <div
-      className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800"
+      className={`relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800${morphing ? ' animate-login-bg-morph' : ''}`}
       style={loginBg ? { backgroundImage: `url(${loginBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
     >
       {loginBg && <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />}
-
-      {/* Fade-out overlay on successful login */}
-      {loggingIn && (
-        <div className="fixed inset-0 z-50 bg-black animate-fade-out-black pointer-events-none" />
-      )}
 
       <button
         onClick={toggle}
@@ -90,7 +84,7 @@ export default function Login() {
           </svg>
         )}
       </button>
-      <div className="relative z-10 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm animate-auth-card-in">
+      <div className={`relative z-10 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm${morphing ? ' animate-login-card-morph' : ' animate-auth-card-in'}`}>
         <h1 className="text-2xl font-bold text-blue-700 dark:text-blue-400 mb-2 text-center">Employee Portal</h1>
 
         {!showForgot ? (
