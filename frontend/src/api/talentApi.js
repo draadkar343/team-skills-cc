@@ -10,5 +10,6 @@ export const uploadCV = (id, file) => {
   formData.append('cv', file);
   return api.post(`/talent/${id}/cv`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
 };
+export const parseCV = (id) => api.post(`/talent/${id}/cv/parse`).then(r => r.data);
 export const deleteCV = (id) => api.delete(`/talent/${id}/cv`).then(r => r.data);
 export const deleteCandidate = (id) => api.delete(`/talent/${id}`).then(r => r.data);

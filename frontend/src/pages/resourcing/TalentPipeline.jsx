@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   listCandidates, createCandidate, updateCandidate,
-  changeStage, uploadCV, deleteCV, deleteCandidate, getCandidate,
+  changeStage, uploadCV, parseCV, deleteCV, deleteCandidate, getCandidate,
 } from '../../api/talentApi';
 import { getJobRoles } from '../../api/jobRoleApi';
 import Button from '../../components/common/Button';
@@ -60,6 +60,8 @@ export default function TalentPipeline() {
   const [stageNote, setStageNote] = useState('');
   const [stageTo, setStageTo] = useState('');
   const [cvUploading, setCvUploading] = useState(false);
+  const [cvParsing, setCvParsing] = useState(false);
+  const [parseMsg, setParseMsg] = useState(null); // { type: 'success'|'error', text }
   const cvInputRef = useRef(null);
 
   const load = async () => {
@@ -75,6 +77,7 @@ export default function TalentPipeline() {
     setDetailLoading(true);
     setSelected(null);
     setEditMode(false);
+    setParseMsg(null);
     const c = await getCandidate(id);
     setSelected(c);
     setDetailLoading(false);
@@ -135,10 +138,45 @@ export default function TalentPipeline() {
     }
   };
 
+  const handleParseCV = async () => {
+    setCvParsing(true);
+    setParseMsg(null);
+    try {
+      const data = await parseCV(selected.id);
+      setSelected(s => ({ ...s, cv_skills: data.skills?.join(', ') || s.cv_skills }));
+      // Enter edit mode pre-filling only empty fields
+      setEditForm({
+        firstName:         selected.first_name        || data.firstName    || '',
+        lastName:          selected.last_name         || data.lastName     || '',
+        email:             selected.email             || data.email        || '',
+        phone:             selected.phone             || data.phone        || '',
+        linkedinUrl:       selected.linkedin_url      || data.linkedinUrl  || '',
+        employmentType:    selected.employment_type   || '',
+        jobRoleId:         selected.job_role_id       || '',
+        jobRoleText:       selected.job_role_text     || data.jobRoleText  || '',
+        availabilityDate:  selected.availability_date?.slice(0, 10) || '',
+        notes:             selected.notes             || (data.summary ? `${data.summary}` : ''),
+        verified:          selected.verified          || false,
+        verificationNotes: selected.verification_notes || '',
+        interviewDate:     selected.interview_date?.slice(0, 16) || '',
+        interviewPanel:    selected.interview_panel   || '',
+        interviewScore:    selected.interview_score   || null,
+        interviewFeedback: selected.interview_feedback || '',
+      });
+      setEditMode(true);
+      setParseMsg({ type: 'success', text: `AI extracted ${data.skills?.length || 0} skills and ${Object.values(data).filter(v => v && v !== data.skills).length} fields from CV.` });
+    } catch (err) {
+      setParseMsg({ type: 'error', text: err.response?.data?.error || 'Failed to parse CV. Please try again.' });
+    } finally {
+      setCvParsing(false);
+    }
+  };
+
   const handleDeleteCV = async () => {
     if (!window.confirm('Remove CV?')) return;
     await deleteCV(selected.id);
-    setSelected(s => ({ ...s, cv_path: null, cv_filename: null }));
+    setSelected(s => ({ ...s, cv_path: null, cv_filename: null, cv_skills: null }));
+    setParseMsg(null);
     await load();
   };
 
@@ -372,22 +410,47 @@ export default function TalentPipeline() {
                     {/* CV */}
                     <Section title="CV / Resume">
                       {selected.cv_path ? (
-                        <div className="flex items-center gap-2">
-                          <a href={selected.cv_path} target="_blank" rel="noreferrer"
-                            className="text-blue-600 hover:underline text-xs truncate flex-1">
-                            {selected.cv_filename || 'Download CV'}
-                          </a>
-                          <button className="text-red-500 text-xs hover:underline" onClick={handleDeleteCV}>Remove</button>
-                        </div>
-                      ) : (
-                        <div>
-                          <button className="text-xs text-blue-600 hover:underline" onClick={() => cvInputRef.current?.click()}>
-                            {cvUploading ? 'Uploading…' : '+ Upload CV (PDF/DOC)'}
+                        <>
+                          <div className="flex items-center gap-2">
+                            <a href={selected.cv_path} target="_blank" rel="noreferrer"
+                              className="text-blue-600 hover:underline text-xs truncate flex-1">
+                              {selected.cv_filename || 'Download CV'}
+                            </a>
+                            <button className="text-red-500 text-xs hover:underline" onClick={handleDeleteCV}>Remove</button>
+                          </div>
+                          <button
+                            className="mt-1 text-xs text-purple-600 hover:underline disabled:opacity-50"
+                            onClick={handleParseCV}
+                            disabled={cvParsing}
+                          >
+                            {cvParsing ? 'Extracting…' : '✦ Extract info with AI'}
                           </button>
-                        </div>
+                          {parseMsg && (
+                            <p className={`text-xs mt-1 ${parseMsg.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                              {parseMsg.text}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <button className="text-xs text-blue-600 hover:underline" onClick={() => cvInputRef.current?.click()}>
+                          {cvUploading ? 'Uploading…' : '+ Upload CV (PDF/DOC)'}
+                        </button>
                       )}
                       <input ref={cvInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleCVUpload} />
                     </Section>
+
+                    {/* AI-extracted skills */}
+                    {selected.cv_skills && (
+                      <Section title="Extracted Skills">
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {selected.cv_skills.split(',').map(s => s.trim()).filter(Boolean).map(skill => (
+                            <span key={skill} className="text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-full px-2 py-0.5">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </Section>
+                    )}
 
                     {/* Verification */}
                     <Section title="Verification">

@@ -241,6 +241,10 @@ db.query(`
   )
 `).catch(err => console.error('[startup] Failed to create talent_candidates:', err.message));
 
+// Add cv_skills column to talent_candidates for AI-extracted skills
+db.query(`ALTER TABLE talent_candidates ADD COLUMN IF NOT EXISTS cv_skills TEXT`)
+  .catch(err => console.error('[startup] Failed to add cv_skills column:', err.message));
+
 // Add grade, sold_rate and cost_rate columns to client_allocations
 db.query(`
   ALTER TABLE client_allocations ADD COLUMN IF NOT EXISTS grade CHAR(1) CHECK (grade IN ('A','B','C'))

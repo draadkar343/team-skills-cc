@@ -13,6 +13,7 @@ router.get('/:id', auth, allowed, c.getCandidate);
 router.patch('/:id', auth, allowed, c.updateCandidate);
 router.post('/:id/stage', auth, allowed, c.changeStage);
 router.post('/:id/cv', auth, allowed, cvUpload.single('cv'), c.uploadCV);
+router.post('/:id/cv/parse', auth, allowed, c.parseCV);
 router.delete('/:id/cv', auth, allowed, c.deleteCV);
 router.delete('/:id', auth, allowed, c.deleteCandidate);
 

@@ -1,6 +1,9 @@
 const db = require('../config/db');
 const path = require('path');
 const fs = require('fs');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const pdfParse = require('pdf-parse');
+const mammoth = require('mammoth');
 
 const VALID_STAGES = ['sourced', 'cv_review', 'phone_screen', 'panel_interview', 'offer', 'hired', 'rejected'];
 
@@ -197,6 +200,87 @@ exports.uploadCV = async (req, res, next) => {
     );
 
     res.json({ cvPath: cvUrl, cvFilename: req.file.originalname });
+  } catch (err) { next(err); }
+};
+
+// POST /talent/:id/cv/parse
+exports.parseCV = async (req, res, next) => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: 'AI not configured — set GEMINI_API_KEY in environment' });
+
+    const { rows } = await db.query(
+      'SELECT cv_path, cv_filename FROM talent_candidates WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Candidate not found' });
+    if (!rows[0].cv_path) return res.status(400).json({ error: 'No CV uploaded for this candidate' });
+
+    const filePath = path.join(__dirname, '../uploads', path.basename(rows[0].cv_path));
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'CV file not found on server' });
+
+    const ext = path.extname(rows[0].cv_path).toLowerCase();
+    let text = '';
+
+    if (ext === '.pdf') {
+      const data = await pdfParse(fs.readFileSync(filePath));
+      text = data.text;
+    } else if (ext === '.docx') {
+      const result = await mammoth.extractRawText({ path: filePath });
+      text = result.value;
+    } else {
+      return res.status(400).json({ error: 'Only PDF and DOCX files can be parsed' });
+    }
+
+    if (!text.trim()) return res.status(400).json({ error: 'Could not extract text from the CV' });
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: process.env.CHAT_MODEL || 'gemini-2.0-flash' });
+
+    const prompt = `You are a CV/resume parser. Extract structured information from the CV text below.
+Return ONLY a valid JSON object with exactly these fields (use null for any field you cannot find):
+{
+  "firstName": string or null,
+  "lastName": string or null,
+  "email": string or null,
+  "phone": string or null,
+  "linkedinUrl": string or null,
+  "jobRoleText": string or null (most recent or desired job title),
+  "skills": string[] (list of technical and professional skills, max 25 items),
+  "summary": string or null (professional summary in 2-3 sentences, max 400 chars)
+}
+
+Return only the JSON object, no markdown, no explanation.
+
+CV TEXT:
+${text.slice(0, 10000)}`;
+
+    const result = await model.generateContent(prompt);
+    const raw = result.response.text().trim().replace(/^```json?\s*/i, '').replace(/\s*```$/, '');
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return res.status(500).json({ error: 'AI returned unexpected output. Please try again.' });
+    }
+
+    const skills = Array.isArray(parsed.skills) ? parsed.skills : [];
+    await db.query(
+      'UPDATE talent_candidates SET cv_skills = $1, updated_at = NOW() WHERE id = $2',
+      [skills.length ? skills.join(', ') : null, req.params.id]
+    );
+
+    res.json({
+      firstName:    parsed.firstName   || null,
+      lastName:     parsed.lastName    || null,
+      email:        parsed.email       || null,
+      phone:        parsed.phone       || null,
+      linkedinUrl:  parsed.linkedinUrl || null,
+      jobRoleText:  parsed.jobRoleText || null,
+      skills,
+      summary:      parsed.summary     || null,
+    });
   } catch (err) { next(err); }
 };
 
