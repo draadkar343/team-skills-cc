@@ -165,6 +165,48 @@ exports.deleteTask = async (req, res, next) => {
 
 // ── Admin — assignments ────────────────────────────────────────────────────────
 
+// Manager + admin: onboarding progress for squad members (manager sees own squad only)
+exports.getSquadProgress = async (req, res, next) => {
+  try {
+    let extraJoin = '';
+    let whereClause = '';
+    let params = [];
+
+    if (req.user.role === 'manager') {
+      const { rows: memberRows } = await db.query(
+        `SELECT sm.user_id FROM squad_members sm
+         JOIN squads s ON s.id = sm.squad_id
+         WHERE s.manager_id = $1`,
+        [req.user.id]
+      );
+      if (!memberRows.length) return res.json([]);
+      params = [memberRows.map(r => r.user_id)];
+      whereClause = 'WHERE eo.user_id = ANY($1)';
+    }
+
+    const { rows } = await db.query(`
+      SELECT eo.id, eo.assigned_at, eo.user_id,
+             u.first_name || ' ' || u.last_name AS employee_name,
+             u.email, u.avatar_url,
+             ot.name AS template_name,
+             COUNT(ott.id)::int      AS total_tasks,
+             COUNT(p.task_id)::int   AS completed_tasks
+      FROM employee_onboarding eo
+      JOIN users u                  ON eo.user_id    = u.id
+      JOIN onboarding_templates ot  ON eo.template_id = ot.id
+      LEFT JOIN onboarding_template_tasks ott ON ott.template_id = eo.template_id
+      LEFT JOIN employee_onboarding_progress p
+        ON p.onboarding_id = eo.id AND p.task_id = ott.id
+      ${whereClause}
+      GROUP BY eo.id, eo.assigned_at, eo.user_id,
+               u.first_name, u.last_name, u.email, u.avatar_url, ot.name
+      ORDER BY u.last_name, u.first_name
+    `, params);
+
+    res.json(rows);
+  } catch (err) { next(err); }
+};
+
 exports.listAssignments = async (req, res, next) => {
   try {
     const { rows } = await db.query(`

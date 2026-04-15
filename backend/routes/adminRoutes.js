@@ -15,5 +15,6 @@ router.get('/stats', auth, role('administrator'), c.getStats);
 router.post('/resume-template', auth, role('administrator'), resumeTemplateUpload.single('resume_template'), c.uploadResumeTemplate);
 router.delete('/resume-template', auth, role('administrator'), c.deleteResumeTemplate);
 router.get('/resume-template/generate', auth, c.generateResume);
+router.post('/resume-template/generate-bulk', auth, role('manager', 'administrator'), c.generateBulkResumes);
 
 module.exports = router;

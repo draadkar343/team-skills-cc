@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
+const archiver = require('archiver');
 
 const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, '../uploads');
 
@@ -146,67 +147,125 @@ exports.generateResume = async (req, res, next) => {
     if (!cfgRows.length || !cfgRows[0].value) {
       return res.status(404).json({ error: 'No resume template configured' });
     }
-
     const templatePath = path.join(uploadDir, path.basename(cfgRows[0].value));
     if (!fs.existsSync(templatePath)) {
       return res.status(404).json({ error: 'Template file not found on server' });
     }
 
-    const userId = req.user.id;
-    const [{ rows: userRows }, { rows: skillRows }] = await Promise.all([
-      db.query(
-        `SELECT u.first_name, u.last_name, u.biography, jr.name AS job_role_name
-         FROM users u
-         LEFT JOIN job_roles jr ON jr.id = u.job_role_id
-         WHERE u.id = $1`,
-        [userId]
-      ),
-      db.query(
-        `SELECT es.weighting, sc.name AS skill_name, ms.name AS main_skill_name
-         FROM employee_skills es
-         JOIN skills_catalogue sc ON sc.id = es.skill_id
-         LEFT JOIN main_skills ms ON ms.id = sc.main_skill_id
-         WHERE es.user_id = $1 AND es.status = 'approved'
-         ORDER BY ms.name, sc.name`,
-        [userId]
-      ),
-    ]);
-
-    if (!userRows.length) return res.status(404).json({ error: 'User not found' });
-    const user = userRows[0];
-
-    // Group skills by main skill name
-    const groupMap = {};
-    skillRows.forEach(s => {
-      const group = s.main_skill_name || 'Other';
-      if (!groupMap[group]) groupMap[group] = [];
-      groupMap[group].push({ skillName: s.skill_name, weighting: s.weighting });
-    });
-    const skillGroups = Object.entries(groupMap).map(([mainSkillName, skills]) => ({ mainSkillName, skills }));
-
-    const content = fs.readFileSync(templatePath, 'binary');
-    const zip = new PizZip(content);
-    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-
-    doc.render({
-      fullName: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
-      firstName: user.first_name || '',
-      lastName: user.last_name || '',
-      jobRole: user.job_role_name || '',
-      biography: user.biography || '',
-      skillGroups,
-    });
-
-    const buf = doc.getZip().generate({ type: 'nodebuffer' });
-    const safeFirst = (user.first_name || 'Resume').replace(/[^a-zA-Z0-9]/g, '');
-    const safeLast = (user.last_name || '').replace(/[^a-zA-Z0-9]/g, '');
-    const fileName = `${safeFirst}${safeLast ? '_' + safeLast : ''}_Resume.docx`;
+    const templateContent = fs.readFileSync(templatePath, 'binary');
+    const result = await buildResumeBuffer(req.user.id, templateContent);
+    if (!result) return res.status(404).json({ error: 'User not found' });
 
     res.set({
       'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'Content-Disposition': `attachment; filename="${fileName}"`,
+      'Content-Disposition': `attachment; filename="${result.fileName}"`,
     });
-    res.send(buf);
+    res.send(result.buffer);
+  } catch (err) {
+    if (err.properties && err.properties.errors) {
+      return next(new Error(`Template error: ${err.properties.errors.map(e => e.message).join(', ')}`));
+    }
+    next(err);
+  }
+};
+
+// Helper shared by single and bulk resume generation
+async function buildResumeBuffer(userId, templateContent) {
+  const [{ rows: userRows }, { rows: skillRows }] = await Promise.all([
+    db.query(
+      `SELECT u.first_name, u.last_name, u.biography, jr.name AS job_role_name
+       FROM users u LEFT JOIN job_roles jr ON jr.id = u.job_role_id WHERE u.id = $1`,
+      [userId]
+    ),
+    db.query(
+      `SELECT es.weighting, sc.name AS skill_name, ms.name AS main_skill_name
+       FROM employee_skills es
+       JOIN skills_catalogue sc ON sc.id = es.skill_id
+       LEFT JOIN main_skills ms ON ms.id = sc.main_skill_id
+       WHERE es.user_id = $1 AND es.status = 'approved'
+       ORDER BY ms.name, sc.name`,
+      [userId]
+    ),
+  ]);
+
+  if (!userRows.length) return null;
+  const user = userRows[0];
+
+  const groupMap = {};
+  skillRows.forEach(s => {
+    const group = s.main_skill_name || 'Other';
+    if (!groupMap[group]) groupMap[group] = [];
+    groupMap[group].push({ skillName: s.skill_name, weighting: s.weighting });
+  });
+  const skillGroups = Object.entries(groupMap).map(([mainSkillName, skills]) => ({ mainSkillName, skills }));
+
+  const zip = new PizZip(templateContent);
+  const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+  doc.render({
+    fullName: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+    firstName: user.first_name || '',
+    lastName: user.last_name || '',
+    jobRole: user.job_role_name || '',
+    biography: user.biography || '',
+    skillGroups,
+  });
+
+  const safeFirst = (user.first_name || '').replace(/[^a-zA-Z0-9]/g, '');
+  const safeLast  = (user.last_name  || '').replace(/[^a-zA-Z0-9]/g, '');
+  const fileName  = `${safeFirst}${safeLast ? '_' + safeLast : ''}_Resume.docx`;
+  return { buffer: doc.getZip().generate({ type: 'nodebuffer' }), fileName };
+}
+
+exports.generateBulkResumes = async (req, res, next) => {
+  try {
+    const { rows: cfgRows } = await db.query("SELECT value FROM system_config WHERE key = 'resume_template_docx'");
+    if (!cfgRows.length || !cfgRows[0].value) {
+      return res.status(404).json({ error: 'No resume template configured' });
+    }
+    const templatePath = path.join(uploadDir, path.basename(cfgRows[0].value));
+    if (!fs.existsSync(templatePath)) {
+      return res.status(404).json({ error: 'Template file not found on server' });
+    }
+
+    // Resolve user IDs — from explicit list or a squadId
+    let userIds = [];
+    const { squadId, userIds: explicit } = req.body;
+
+    if (squadId) {
+      const isAdmin = req.user.role === 'administrator';
+      const { rows: members } = await db.query(
+        isAdmin
+          ? `SELECT sm.user_id FROM squad_members sm WHERE sm.squad_id = $1`
+          : `SELECT sm.user_id FROM squad_members sm JOIN squads s ON s.id = sm.squad_id WHERE sm.squad_id = $1 AND s.manager_id = $2`,
+        isAdmin ? [squadId] : [squadId, req.user.id]
+      );
+      userIds = members.map(m => m.user_id);
+    } else if (Array.isArray(explicit) && explicit.length) {
+      userIds = explicit;
+    }
+
+    if (!userIds.length) return res.status(400).json({ error: 'No users specified' });
+
+    // Generate all docx buffers before streaming so errors surface early
+    const templateContent = fs.readFileSync(templatePath, 'binary');
+    const docs = [];
+    for (const uid of userIds) {
+      const result = await buildResumeBuffer(uid, templateContent);
+      if (result) docs.push(result);
+    }
+
+    if (!docs.length) return res.status(400).json({ error: 'No resumes could be generated' });
+
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': 'attachment; filename="Resume_Pack.zip"',
+    });
+
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('error', err => next(err));
+    archive.pipe(res);
+    docs.forEach(({ buffer, fileName }) => archive.append(buffer, { name: fileName }));
+    await archive.finalize();
   } catch (err) {
     if (err.properties && err.properties.errors) {
       return next(new Error(`Template error: ${err.properties.errors.map(e => e.message).join(', ')}`));

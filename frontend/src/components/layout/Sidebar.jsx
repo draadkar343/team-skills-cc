@@ -75,8 +75,10 @@ export default function Sidebar() {
             </Group>
 
             <Group label="My Team">
-              {can('page.squad')         && <NavLink to="/squad"         className={linkClass}>My Squad</NavLink>}
-              {can('page.team_calendar') && <NavLink to="/team-calendar" className={linkClass}>Team Calendar</NavLink>}
+              {can('page.squad')                && <NavLink to="/squad"                className={linkClass}>My Squad</NavLink>}
+              {can('page.team_calendar')        && <NavLink to="/team-calendar"        className={linkClass}>Team Calendar</NavLink>}
+              {can('page.onboarding_progress')  && <NavLink to="/onboarding-progress"  className={linkClass}>Onboarding Progress</NavLink>}
+              {can('page.resume_pack')          && <NavLink to="/resume-pack"          className={linkClass}>Resume Pack</NavLink>}
             </Group>
 
             <Group label="Analytics">
@@ -209,8 +211,10 @@ export default function Sidebar() {
             </Group>
 
             <Group label="System">
-              {can('page.admin_onboarding')   && <NavLink to="/admin/onboarding"   className={linkClass}>Onboarding</NavLink>}
-              {can('page.admin_reports')      && <NavLink to="/admin/reports"      className={linkClass}>Reports</NavLink>}
+              {can('page.admin_onboarding')    && <NavLink to="/admin/onboarding"    className={linkClass}>Onboarding</NavLink>}
+              {can('page.onboarding_progress') && <NavLink to="/onboarding-progress" className={linkClass}>Onboarding Progress</NavLink>}
+              {can('page.resume_pack')         && <NavLink to="/resume-pack"         className={linkClass}>Resume Pack</NavLink>}
+              {can('page.admin_reports')       && <NavLink to="/admin/reports"       className={linkClass}>Reports</NavLink>}
               {can('page.admin_roles')        && <NavLink to="/admin/roles"        className={linkClass}>Role Management</NavLink>}
               {can('page.admin_integrations') && <NavLink to="/admin/integrations" className={linkClass}>Integrations</NavLink>}
               {can('page.admin_config')       && <NavLink to="/admin/config"       className={linkClass}>System Config</NavLink>}

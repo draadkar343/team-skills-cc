@@ -13,6 +13,9 @@ export const addTask           = (templateId, data)        => api.post(`/onboard
 export const updateTask        = (templateId, taskId, data) => api.patch(`/onboarding/templates/${templateId}/tasks/${taskId}`, data).then(r => r.data);
 export const deleteTask        = (templateId, taskId)      => api.delete(`/onboarding/templates/${templateId}/tasks/${taskId}`).then(r => r.data);
 
+// Manager + admin — squad onboarding progress
+export const getSquadProgress  = ()                        => api.get('/onboarding/squad-progress').then(r => r.data);
+
 // Admin — assignments
 export const listAssignments   = ()                        => api.get('/onboarding/assignments').then(r => r.data);
 export const assign            = (userId, templateId)      => api.post('/onboarding/assignments', { userId, templateId }).then(r => r.data);

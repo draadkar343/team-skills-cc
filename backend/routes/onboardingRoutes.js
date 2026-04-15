@@ -16,6 +16,9 @@ router.post('/templates/:id/tasks',        auth, role('administrator'), c.addTas
 router.patch('/templates/:id/tasks/:taskId',  auth, role('administrator'), c.updateTask);
 router.delete('/templates/:id/tasks/:taskId', auth, role('administrator'), c.deleteTask);
 
+// Manager + admin — squad onboarding progress dashboard
+router.get('/squad-progress',              auth, role('manager', 'administrator'), c.getSquadProgress);
+
 // Admin — assignments
 router.get('/assignments',                 auth, role('administrator'), c.listAssignments);
 router.post('/assignments',                auth, role('administrator'), c.assign);

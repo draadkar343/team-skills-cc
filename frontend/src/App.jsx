@@ -63,6 +63,8 @@ import Onboarding from './pages/employee/Onboarding';
 import OnboardingAdmin from './pages/admin/OnboardingAdmin';
 import OrgChart from './pages/shared/OrgChart';
 import EmployeeDirectory from './pages/shared/EmployeeDirectory';
+import ResumePack from './pages/manager/ResumePack';
+import OnboardingProgress from './pages/manager/OnboardingProgress';
 
 function AppLayout({ children }) {
   return (
@@ -312,6 +314,20 @@ export default function App() {
       <Route path="/admin/onboarding" element={
         <ProtectedRoute allowedRoles={['administrator']}>
           <AppLayout><OnboardingAdmin /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Resume Pack — manager + admin */}
+      <Route path="/resume-pack" element={
+        <ProtectedRoute allowedRoles={['manager', 'administrator']}>
+          <AppLayout><ResumePack /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Onboarding Progress — manager + admin */}
+      <Route path="/onboarding-progress" element={
+        <ProtectedRoute allowedRoles={['manager', 'administrator']}>
+          <AppLayout><OnboardingProgress /></AppLayout>
         </ProtectedRoute>
       } />
 
