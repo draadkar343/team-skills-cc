@@ -64,7 +64,26 @@ function Field({ label, value }) {
   );
 }
 
-const BLANK_CLIENT   = { name: '', description: '', contactName: '', contactEmail: '' };
+const INDUSTRIES = [
+  'Technology',
+  'Finance & Banking',
+  'Healthcare',
+  'Retail & Consumer',
+  'Manufacturing',
+  'Energy & Utilities',
+  'Telecommunications',
+  'Education',
+  'Government & Public Sector',
+  'Transportation & Logistics',
+  'Media & Entertainment',
+  'Real Estate',
+  'Insurance',
+  'Professional Services',
+  'Non-profit & Charity',
+  'Other',
+];
+
+const BLANK_CLIENT   = { name: '', description: '', contactName: '', contactEmail: '', industry: '' };
 const BLANK_SYSTEM   = { name: '', version: '', vendor: '', environment: 'production', status: 'active', supportExpiry: '', description: '', notes: '' };
 const BLANK_ROADMAP  = { title: '', description: '', targetDate: '', status: 'planned', priority: 'medium' };
 const BLANK_CONTRACT = { title: '', contractNumber: '', type: '', startDate: '', endDate: '', value: '', currency: 'USD', status: 'active', description: '', notes: '' };
@@ -158,14 +177,14 @@ export default function ClientsPage() {
 
   const openEditClient = (c) => {
     setEditingClient(c);
-    setClientForm({ name: c.name, description: c.description || '', contactName: c.contact_name || '', contactEmail: c.contact_email || '' });
+    setClientForm({ name: c.name, description: c.description || '', contactName: c.contact_name || '', contactEmail: c.contact_email || '', industry: c.industry || '' });
     setClientModal(true);
   };
 
   const saveClient = async () => {
     setLoading(true);
     try {
-      const payload = { name: clientForm.name, description: clientForm.description, contactName: clientForm.contactName, contactEmail: clientForm.contactEmail };
+      const payload = { name: clientForm.name, description: clientForm.description, contactName: clientForm.contactName, contactEmail: clientForm.contactEmail, industry: clientForm.industry };
       if (editingClient) {
         const updated = await updateClient(editingClient.id, payload);
         setSelected(prev => prev?.id === updated.id ? { ...prev, ...updated } : prev);
@@ -366,7 +385,10 @@ export default function ClientsPage() {
                 <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
                 <span className="text-sm font-medium truncate">{c.name}</span>
               </div>
-              {c.contact_email && (
+              {c.industry && (
+                <p className="text-xs text-blue-500 mt-0.5 truncate pl-3.5">{c.industry}</p>
+              )}
+              {!c.industry && c.contact_email && (
                 <p className="text-xs text-gray-400 mt-0.5 truncate pl-3.5">{c.contact_email}</p>
               )}
             </div>
@@ -386,9 +408,16 @@ export default function ClientsPage() {
             <div className="flex items-start justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">{selected.name}</h2>
-                <span className={`mt-1 inline-block px-2 py-0.5 rounded text-xs font-medium ${selected.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {selected.is_active ? 'Active' : 'Inactive'}
-                </span>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${selected.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {selected.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                  {selected.industry && (
+                    <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                      {selected.industry}
+                    </span>
+                  )}
+                </div>
               </div>
               {canManage && (
                 <div className="flex gap-2">
@@ -431,6 +460,7 @@ export default function ClientsPage() {
                     <div className="space-y-4">
                       <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Client Details</h3>
                       <Field label="Name" value={selected.name} />
+                      <Field label="Industry" value={selected.industry} />
                       <Field label="Description" value={selected.description} />
                       <Field label="Contact Name" value={selected.contact_name} />
                       <Field label="Contact Email" value={selected.contact_email} />
@@ -706,6 +736,13 @@ export default function ClientsPage() {
           <div>
             <label className="block text-sm font-medium mb-1">Description</label>
             <textarea rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={clientForm.description} onChange={e => setClientForm(f => ({ ...f, description: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Industry</label>
+            <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={clientForm.industry} onChange={e => setClientForm(f => ({ ...f, industry: e.target.value }))}>
+              <option value="">— Select industry —</option>
+              {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

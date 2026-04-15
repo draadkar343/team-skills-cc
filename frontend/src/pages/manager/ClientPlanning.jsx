@@ -8,7 +8,26 @@ import {
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 
-const emptyClientForm = { name: '', description: '', contactName: '', contactEmail: '' };
+const INDUSTRIES = [
+  'Technology',
+  'Finance & Banking',
+  'Healthcare',
+  'Retail & Consumer',
+  'Manufacturing',
+  'Energy & Utilities',
+  'Telecommunications',
+  'Education',
+  'Government & Public Sector',
+  'Transportation & Logistics',
+  'Media & Entertainment',
+  'Real Estate',
+  'Insurance',
+  'Professional Services',
+  'Non-profit & Charity',
+  'Other',
+];
+
+const emptyClientForm = { name: '', description: '', contactName: '', contactEmail: '', industry: '' };
 
 const ENVIRONMENTS = ['production', 'staging', 'development', 'uat'];
 const STATUSES     = ['active', 'deprecated', 'end_of_life'];
@@ -160,7 +179,7 @@ export default function ClientPlanning() {
   };
 
   const openEditClient = (c) => {
-    setClientForm({ name: c.name, description: c.description || '', contactName: c.contact_name || '', contactEmail: c.contact_email || '' });
+    setClientForm({ name: c.name, description: c.description || '', contactName: c.contact_name || '', contactEmail: c.contact_email || '', industry: c.industry || '' });
     setEditTarget(c);
     setClientModal('edit');
   };
@@ -338,7 +357,8 @@ export default function ClientPlanning() {
                   className={`p-3 rounded-xl border cursor-pointer transition-colors ${selectedClient?.id === c.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
                 >
                   <div className="font-medium text-sm text-gray-800">{c.name}</div>
-                  {c.contact_name && <div className="text-xs text-gray-400 mt-0.5">{c.contact_name}</div>}
+                  {c.industry && <div className="text-xs text-blue-500 mt-0.5">{c.industry}</div>}
+                  {!c.industry && c.contact_name && <div className="text-xs text-gray-400 mt-0.5">{c.contact_name}</div>}
                 </div>
               ))}
             </div>
@@ -355,7 +375,14 @@ export default function ClientPlanning() {
                 {/* Client header */}
                 <div className="flex items-start justify-between p-5 border-b border-gray-100">
                   <div>
-                    <h2 className="font-semibold text-gray-800">{selectedClient.name}</h2>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="font-semibold text-gray-800">{selectedClient.name}</h2>
+                      {selectedClient.industry && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
+                          {selectedClient.industry}
+                        </span>
+                      )}
+                    </div>
                     {selectedClient.description && (
                       <p className="text-xs text-gray-500 mt-0.5">{selectedClient.description}</p>
                     )}
@@ -540,6 +567,14 @@ export default function ClientPlanning() {
             <label className="block text-sm font-medium mb-1">Description</label>
             <textarea rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
               value={clientForm.description} onChange={e => setClientForm(f => ({ ...f, description: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Industry</label>
+            <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={clientForm.industry} onChange={e => setClientForm(f => ({ ...f, industry: e.target.value }))}>
+              <option value="">— Select industry —</option>
+              {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

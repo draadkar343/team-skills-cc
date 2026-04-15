@@ -87,9 +87,24 @@ export default function Biography() {
             </div>`).join('')
         : '<p style="font-size: 13px; color: #9CA3AF; margin: 0;">No approved skills yet.</p>';
 
-      const picHtml = user.avatarUrl
-        ? `<img src="${user.avatarUrl}" crossorigin="anonymous" style="width:96px;height:96px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`
-        : `<div style="width:96px;height:96px;border-radius:50%;background:#E5E7EB;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#9CA3AF;flex-shrink:0;">${(user.firstName?.[0] || '') + (user.lastName?.[0] || '')}</div>`;
+      const initialsHtml = `<div style="width:96px;height:96px;border-radius:50%;background:#E5E7EB;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#9CA3AF;flex-shrink:0;">${(user.firstName?.[0] || '') + (user.lastName?.[0] || '')}</div>`;
+
+      let picHtml = initialsHtml;
+      if (user.avatarUrl) {
+        try {
+          const response = await fetch(user.avatarUrl);
+          const blob = await response.blob();
+          const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          picHtml = `<img src="${dataUrl}" style="width:96px;height:96px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`;
+        } catch {
+          // fall back to initials if fetch fails
+        }
+      }
 
       const html = template
         .replace(/\{\{fullName\}\}/g, `${user.firstName || ''} ${user.lastName || ''}`.trim())
