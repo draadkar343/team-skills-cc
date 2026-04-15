@@ -14,6 +14,13 @@ export const uploadLoginBg = (file) => {
 };
 export const removeLoginBg = () => api.delete('/admin/login-bg').then(r => r.data);
 export const getStats = () => api.get('/admin/stats').then(r => r.data);
+export const uploadResumeTemplate = (file) => {
+  const form = new FormData();
+  form.append('resume_template', file);
+  return api.post('/admin/resume-template', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
+};
+export const deleteResumeTemplate = () => api.delete('/admin/resume-template').then(r => r.data);
+export const generateResume = () => api.get('/admin/resume-template/generate', { responseType: 'blob' }).then(r => r.data);
 export const listUsers = () => api.get('/users').then(r => r.data);
 export const getUserDirectory = () => api.get('/users/directory').then(r => r.data);
 export const createUser = (data) => api.post('/users', data).then(r => r.data);

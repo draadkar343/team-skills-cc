@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getConfig, updateConfig, uploadLogo, uploadLoginBg, removeLoginBg } from '../../api/adminApi';
+import { getConfig, updateConfig, uploadLogo, uploadLoginBg, removeLoginBg, uploadResumeTemplate, deleteResumeTemplate } from '../../api/adminApi';
 import Button from '../../components/common/Button';
 
 export default function SystemConfig() {
@@ -13,7 +13,9 @@ export default function SystemConfig() {
   const [uploading, setUploading] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
   const [removingBg, setRemovingBg] = useState(false);
-  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateFile, setTemplateFile] = useState(null);
+  const [templateUploading, setTemplateUploading] = useState(false);
+  const [deletingTemplate, setDeletingTemplate] = useState(false);
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function SystemConfig() {
     setMsg('');
     const changes = {};
     Object.entries(values).forEach(([k, v]) => {
-      if (k !== 'company_logo') changes[k] = v;
+      if (k !== 'company_logo' && k !== 'resume_template') changes[k] = v;
     });
     try {
       await updateConfig(changes);
@@ -99,15 +101,36 @@ export default function SystemConfig() {
     } finally { setRemovingBg(false); }
   };
 
-  const handleSaveTemplate = async () => {
-    setTemplateSaving(true);
+  const handleTemplateChange = (e) => {
+    setTemplateFile(e.target.files[0] || null);
+  };
+
+  const handleUploadTemplate = async () => {
+    if (!templateFile) return;
+    setTemplateUploading(true);
     setMsg('');
     try {
-      await updateConfig({ resume_template: values.resume_template || '' });
-      setMsg('Resume template saved successfully.');
+      await uploadResumeTemplate(templateFile);
+      const cfg = await getConfig();
+      setConfig(cfg);
+      setTemplateFile(null);
+      setMsg('Resume template uploaded successfully.');
     } catch {
-      setMsg('Failed to save resume template.');
-    } finally { setTemplateSaving(false); }
+      setMsg('Failed to upload resume template.');
+    } finally { setTemplateUploading(false); }
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!window.confirm('Remove the resume template?')) return;
+    setDeletingTemplate(true);
+    setMsg('');
+    try {
+      await deleteResumeTemplate();
+      setConfig(c => ({ ...c, resume_template_docx: { ...(c.resume_template_docx || {}), value: null } }));
+      setMsg('Resume template removed.');
+    } catch {
+      setMsg('Failed to remove resume template.');
+    } finally { setDeletingTemplate(false); }
   };
 
   const editableKeys = ['company_name', 'primary_color', 'allow_self_register'];
@@ -207,18 +230,21 @@ export default function SystemConfig() {
       <div className="mt-6 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <h2 className="font-semibold mb-1">Resume Template</h2>
         <p className="text-xs text-gray-400 mb-3">
-          HTML template used when employees generate their resume PDF. Use the placeholders below to inject employee data.
+          Upload a Word (.docx) document as the resume template. Employees will download a filled copy when they generate their resume.
         </p>
-        <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-600 space-y-1">
-          <p className="font-medium text-gray-700 mb-1">Available placeholders:</p>
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-600 space-y-1">
+          <p className="font-medium text-gray-700 mb-1">Available placeholders (use single curly braces in your Word document):</p>
           {[
-            ['{{fullName}}', 'Full name (first + last)'],
-            ['{{firstName}}', 'First name'],
-            ['{{lastName}}', 'Last name'],
-            ['{{jobRole}}', 'Job role title'],
-            ['{{biography}}', 'Employee biography text'],
-            ['{{profilePicture}}', 'Profile photo (rendered as <img> or initials)'],
-            ['{{skills}}', 'Approved skills grouped by main skill'],
+            ['{fullName}', 'Full name (first + last)'],
+            ['{firstName}', 'First name'],
+            ['{lastName}', 'Last name'],
+            ['{jobRole}', 'Job role title'],
+            ['{biography}', 'Employee biography text'],
+            ['{#skillGroups} ... {/skillGroups}', 'Loop over skill groups'],
+            ['{mainSkillName}', 'Skill group name (inside skill group loop)'],
+            ['{#skills} ... {/skills}', 'Loop over skills within a group'],
+            ['{skillName}', 'Skill name (inside skills loop)'],
+            ['{weighting}', 'Skill weighting % (inside skills loop)'],
           ].map(([ph, desc]) => (
             <div key={ph} className="flex gap-2">
               <code className="bg-white border border-gray-200 rounded px-1 font-mono text-blue-600 whitespace-nowrap">{ph}</code>
@@ -226,17 +252,21 @@ export default function SystemConfig() {
             </div>
           ))}
         </div>
-        <textarea
-          rows={18}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono resize-y focus:outline-none focus:ring-2 focus:ring-blue-400"
-          value={values.resume_template || ''}
-          onChange={e => setValues(v => ({ ...v, resume_template: e.target.value }))}
-          placeholder="Enter HTML template here..."
-          spellCheck={false}
-        />
-        <div className="mt-3">
-          <Button type="button" onClick={handleSaveTemplate} loading={templateSaving}>Save Template</Button>
+        {config.resume_template_docx?.value && (
+          <div className="flex items-center gap-3 mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+            <span>Template is configured.</span>
+            <Button variant="danger" onClick={handleDeleteTemplate} loading={deletingTemplate}>Remove</Button>
+          </div>
+        )}
+        <div>
+          <input type="file" accept=".docx" onChange={handleTemplateChange} className="text-sm" />
+          <p className="text-xs text-gray-400 mt-1">Word document (.docx) only, max 10MB</p>
         </div>
+        {templateFile && (
+          <div className="mt-3">
+            <Button onClick={handleUploadTemplate} loading={templateUploading}>Upload Template</Button>
+          </div>
+        )}
       </div>
     </div>
   );

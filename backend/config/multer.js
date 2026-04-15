@@ -77,8 +77,27 @@ const cvStorage = multer.diskStorage({
 
 const cvUpload = multer({ storage: cvStorage, fileFilter: cvFilter, limits: { fileSize: 10 * 1024 * 1024 } });
 
+const resumeTemplateFilter = (_req, file, cb) => {
+  const docxMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (file.mimetype === docxMime || file.originalname.toLowerCase().endsWith('.docx')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only Word (.docx) files are allowed for resume templates'), false);
+  }
+};
+
+const resumeTemplateStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, _file, cb) => {
+    cb(null, `resume_template_${Date.now()}.docx`);
+  },
+});
+
+const resumeTemplateUpload = multer({ storage: resumeTemplateStorage, fileFilter: resumeTemplateFilter, limits: { fileSize: 10 * 1024 * 1024 } });
+
 module.exports = logoUpload;
 module.exports.avatarUpload = avatarUpload;
 module.exports.certificateUpload = certificateUpload;
 module.exports.csvUpload = csvUpload;
 module.exports.cvUpload = cvUpload;
+module.exports.resumeTemplateUpload = resumeTemplateUpload;

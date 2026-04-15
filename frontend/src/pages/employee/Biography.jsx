@@ -1,30 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 import { getMe, updateProfile } from '../../api/authApi';
-import { getMySkills } from '../../api/skillsApi';
-import { getConfig } from '../../api/adminApi';
+import { getConfig, generateResume } from '../../api/adminApi';
 import Button from '../../components/common/Button';
 
 const MAX_CHARS = 2000;
-
-const DEFAULT_TEMPLATE = `<div style="font-family: Arial, sans-serif; padding: 40px; background: white; color: #333; max-width: 794px;">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 28px; padding-bottom: 24px; border-bottom: 3px solid #3B82F6;">
-    {{profilePicture}}
-    <div>
-      <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #111827;">{{fullName}}</h1>
-      <p style="margin: 6px 0 0; font-size: 15px; color: #6B7280;">{{jobRole}}</p>
-    </div>
-  </div>
-  <div style="margin-bottom: 28px;">
-    <h2 style="font-size: 14px; font-weight: 700; color: #3B82F6; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Professional Summary</h2>
-    <p style="font-size: 13px; line-height: 1.7; margin: 0; white-space: pre-wrap;">{{biography}}</p>
-  </div>
-  <div>
-    <h2 style="font-size: 14px; font-weight: 700; color: #3B82F6; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Skills</h2>
-    {{skills}}
-  </div>
-</div>`;
 
 export default function Biography() {
   const [biography, setBiography] = useState('');
@@ -32,14 +11,16 @@ export default function Biography() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [hasTemplate, setHasTemplate] = useState(false);
   const [msg, setMsg] = useState(null); // { type: 'success'|'error', text }
 
   useEffect(() => {
-    getMe()
-      .then(u => {
+    Promise.all([getMe(), getConfig()])
+      .then(([u, cfg]) => {
         const bio = u.biography || '';
         setBiography(bio);
         setOriginal(bio);
+        setHasTemplate(!!cfg.resume_template_docx?.value);
       })
       .catch(() => setMsg({ type: 'error', text: 'Failed to load profile.' }))
       .finally(() => setLoading(false));
@@ -64,98 +45,20 @@ export default function Biography() {
     setGenerating(true);
     setMsg(null);
     try {
-      const [user, skills, cfg] = await Promise.all([getMe(), getMySkills(), getConfig()]);
-
-      const template = cfg.resume_template?.value || DEFAULT_TEMPLATE;
-      const approvedSkills = skills.filter(s => s.status === 'approved');
-
-      // Group by main skill name
-      const grouped = {};
-      approvedSkills.forEach(s => {
-        const group = s.main_skill_name || 'Other';
-        if (!grouped[group]) grouped[group] = [];
-        grouped[group].push(s);
-      });
-
-      const skillsHtml = Object.keys(grouped).length
-        ? Object.entries(grouped).map(([mainSkill, subSkills]) => `
-            <div style="margin-bottom: 14px;">
-              <div style="font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 6px;">${mainSkill}</div>
-              <ul style="margin: 0; padding-left: 18px;">
-                ${subSkills.map(s => `<li style="font-size: 13px; margin-bottom: 3px; color: #4B5563;">${s.skill_name} <span style="color: #9CA3AF;">(${s.weighting}%)</span></li>`).join('')}
-              </ul>
-            </div>`).join('')
-        : '<p style="font-size: 13px; color: #9CA3AF; margin: 0;">No approved skills yet.</p>';
-
-      const initialsHtml = `<div style="width:96px;height:96px;border-radius:50%;background:#E5E7EB;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#9CA3AF;flex-shrink:0;">${(user.firstName?.[0] || '') + (user.lastName?.[0] || '')}</div>`;
-
-      let picHtml = initialsHtml;
-      if (user.avatarUrl) {
-        try {
-          const response = await fetch(user.avatarUrl);
-          const blob = await response.blob();
-          const dataUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          picHtml = `<img src="${dataUrl}" style="width:96px;height:96px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`;
-        } catch {
-          // fall back to initials if fetch fails
-        }
-      }
-
-      const html = template
-        .replace(/\{\{fullName\}\}/g, `${user.firstName || ''} ${user.lastName || ''}`.trim())
-        .replace(/\{\{firstName\}\}/g, user.firstName || '')
-        .replace(/\{\{lastName\}\}/g, user.lastName || '')
-        .replace(/\{\{jobRole\}\}/g, user.jobRoleName || '')
-        .replace(/\{\{biography\}\}/g, user.biography || '')
-        .replace(/\{\{profilePicture\}\}/g, picHtml)
-        .replace(/\{\{skills\}\}/g, skillsHtml);
-
-      // Render off-screen
-      const container = document.createElement('div');
-      container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:white;';
-      container.innerHTML = html;
-      document.body.appendChild(container);
-
-      // Wait for images to load
-      await Promise.all(
-        [...container.querySelectorAll('img')].map(
-          img => new Promise(resolve => {
-            if (img.complete) resolve();
-            else { img.onload = resolve; img.onerror = resolve; }
-          })
-        )
-      );
-
-      const canvas = await html2canvas(container, { scale: 2, useCORS: true, allowTaint: true });
-      document.body.removeChild(container);
-
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const imgH = (canvas.height / canvas.width) * pageW;
-      const imgData = canvas.toDataURL('image/png');
-
-      if (imgH <= pageH) {
-        pdf.addImage(imgData, 'PNG', 0, 0, pageW, imgH);
-      } else {
-        let posY = 0;
-        while (posY < imgH) {
-          pdf.addImage(imgData, 'PNG', 0, -posY, pageW, imgH);
-          posY += pageH;
-          if (posY < imgH) pdf.addPage();
-        }
-      }
-
-      const fileName = `${user.firstName || 'Resume'}_${user.lastName || ''}_Resume.pdf`.replace(/\s+/g, '_');
-      pdf.save(fileName);
+      const [user, blob] = await Promise.all([getMe(), generateResume()]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(user.firstName || 'Resume').replace(/\s+/g, '_')}_${(user.lastName || '').replace(/\s+/g, '_')}_Resume.docx`.replace(/^_|_$/g, '');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Resume generation error:', err);
-      setMsg({ type: 'error', text: 'Failed to generate resume. Please try again.' });
+      const text = err.response?.status === 404
+        ? 'No resume template has been configured. Please contact your administrator.'
+        : 'Failed to generate resume. Please try again.';
+      setMsg({ type: 'error', text });
     } finally {
       setGenerating(false);
     }
@@ -224,13 +127,17 @@ export default function Biography() {
       )}
 
       <div className="mt-6 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-1">Resume PDF</h2>
+        <h2 className="text-sm font-semibold text-gray-700 mb-1">Resume</h2>
         <p className="text-xs text-gray-400 mb-4">
-          Generates a PDF using the company resume template — includes your profile picture, name, job role, biography, and all approved skills grouped by category.
+          Downloads a Word document using the company resume template — includes your name, job role, biography, and all approved skills grouped by category.
         </p>
-        <Button type="button" onClick={handleGenerateResume} loading={generating}>
-          Download Resume PDF
-        </Button>
+        {hasTemplate ? (
+          <Button type="button" onClick={handleGenerateResume} loading={generating}>
+            Download Resume
+          </Button>
+        ) : (
+          <p className="text-xs text-gray-400 italic">No resume template has been configured. Please contact your administrator.</p>
+        )}
       </div>
     </div>
   );
