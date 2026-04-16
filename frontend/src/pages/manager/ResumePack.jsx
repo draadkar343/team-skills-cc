@@ -1,39 +1,76 @@
 import React, { useEffect, useState } from 'react';
 import { listSquads, getSquad } from '../../api/squadApi';
-import { getConfig, generateBulkResumes } from '../../api/adminApi';
+import { getConfig, generateBulkResumes, getUsersByJobRole } from '../../api/adminApi';
+import { getJobRoles } from '../../api/jobRoleApi';
 import Button from '../../components/common/Button';
 
 export default function ResumePack() {
+  const [mode, setMode] = useState('squad'); // 'squad' | 'jobRole'
+
   const [squads, setSquads] = useState([]);
   const [selectedSquadId, setSelectedSquadId] = useState('');
+
+  const [jobRoles, setJobRoles] = useState([]);
+  const [selectedJobRoleId, setSelectedJobRoleId] = useState('');
+  const [selectedJobRoleName, setSelectedJobRoleName] = useState('');
+
   const [members, setMembers] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [loadingSquad, setLoadingSquad] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [hasTemplate, setHasTemplate] = useState(false);
   const [msg, setMsg] = useState(null);
 
   useEffect(() => {
-    Promise.all([listSquads(), getConfig()]).then(([squadsData, cfg]) => {
+    Promise.all([listSquads(), getJobRoles(), getConfig()]).then(([squadsData, rolesData, cfg]) => {
       setSquads(squadsData);
+      setJobRoles(rolesData.filter(r => r.is_active));
       setHasTemplate(!!cfg.resume_template_docx?.value);
     });
   }, []);
 
-  const handleSquadChange = async (squadId) => {
-    setSelectedSquadId(squadId);
+  const resetMembers = () => {
     setMembers([]);
     setSelectedIds(new Set());
     setMsg(null);
+  };
+
+  const handleModeChange = (newMode) => {
+    setMode(newMode);
+    setSelectedSquadId('');
+    setSelectedJobRoleId('');
+    setSelectedJobRoleName('');
+    resetMembers();
+  };
+
+  const handleSquadChange = async (squadId) => {
+    setSelectedSquadId(squadId);
+    resetMembers();
     if (!squadId) return;
-    setLoadingSquad(true);
+    setLoadingMembers(true);
     try {
       const squad = await getSquad(squadId);
       const m = squad.members || [];
       setMembers(m);
       setSelectedIds(new Set(m.map(x => x.id)));
     } finally {
-      setLoadingSquad(false);
+      setLoadingMembers(false);
+    }
+  };
+
+  const handleJobRoleChange = async (jobRoleId) => {
+    setSelectedJobRoleId(jobRoleId);
+    const jr = jobRoles.find(r => String(r.id) === String(jobRoleId));
+    setSelectedJobRoleName(jr?.name || '');
+    resetMembers();
+    if (!jobRoleId) return;
+    setLoadingMembers(true);
+    try {
+      const users = await getUsersByJobRole(jobRoleId);
+      setMembers(users);
+      setSelectedIds(new Set(users.map(u => u.id)));
+    } finally {
+      setLoadingMembers(false);
     }
   };
 
@@ -49,17 +86,24 @@ export default function ResumePack() {
   const toggleAll = () =>
     setSelectedIds(allSelected ? new Set() : new Set(members.map(m => m.id)));
 
+  const getPackName = () => {
+    if (mode === 'squad') {
+      const squad = squads.find(s => String(s.id) === String(selectedSquadId));
+      return (squad?.name || 'Squad').replace(/\s+/g, '_');
+    }
+    return (selectedJobRoleName || 'JobRole').replace(/\s+/g, '_');
+  };
+
   const handleDownload = async () => {
     if (!selectedIds.size) return;
     setDownloading(true);
     setMsg(null);
     try {
       const blob = await generateBulkResumes({ userIds: [...selectedIds] });
-      const squad = squads.find(s => String(s.id) === String(selectedSquadId));
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${(squad?.name || 'Squad').replace(/\s+/g, '_')}_Resume_Pack.zip`;
+      a.download = `${getPackName()}_Resume_Pack.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -70,6 +114,8 @@ export default function ResumePack() {
       setDownloading(false);
     }
   };
+
+  const hasSelection = mode === 'squad' ? !!selectedSquadId : !!selectedJobRoleId;
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -92,27 +138,66 @@ export default function ResumePack() {
         }`}>{msg.text}</div>
       )}
 
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => handleModeChange('squad')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+            mode === 'squad'
+              ? 'bg-blue-600 text-white border-blue-600'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+          }`}
+        >
+          By Squad
+        </button>
+        <button
+          onClick={() => handleModeChange('jobRole')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+            mode === 'jobRole'
+              ? 'bg-blue-600 text-white border-blue-600'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+          }`}
+        >
+          By Job Role
+        </button>
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Select Squad</label>
-          <select
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            value={selectedSquadId}
-            onChange={e => handleSquadChange(e.target.value)}
-          >
-            <option value="">— choose a squad —</option>
-            {squads.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.member_count} member{s.member_count !== 1 ? 's' : ''})
-              </option>
-            ))}
-          </select>
-        </div>
+        {mode === 'squad' ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Select Squad</label>
+            <select
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              value={selectedSquadId}
+              onChange={e => handleSquadChange(e.target.value)}
+            >
+              <option value="">— choose a squad —</option>
+              {squads.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.member_count} member{s.member_count !== 1 ? 's' : ''})
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Select Job Role</label>
+            <select
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              value={selectedJobRoleId}
+              onChange={e => handleJobRoleChange(e.target.value)}
+            >
+              <option value="">— choose a job role —</option>
+              {jobRoles.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        {loadingSquad && <p className="text-sm text-gray-400">Loading members…</p>}
+        {loadingMembers && <p className="text-sm text-gray-400">Loading members…</p>}
 
-        {!loadingSquad && selectedSquadId && members.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-4">No members in this squad.</p>
+        {!loadingMembers && hasSelection && members.length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-4">No members found.</p>
         )}
 
         {members.length > 0 && (

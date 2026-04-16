@@ -22,6 +22,7 @@ export const uploadResumeTemplate = (file) => {
 export const deleteResumeTemplate = () => api.delete('/admin/resume-template').then(r => r.data);
 export const generateResume = () => api.get('/admin/resume-template/generate', { responseType: 'blob' }).then(r => r.data);
 export const generateBulkResumes = (payload) => api.post('/admin/resume-template/generate-bulk', payload, { responseType: 'blob' }).then(r => r.data);
+export const getUsersByJobRole = (jobRoleId) => api.get('/admin/users-by-role', { params: { jobRoleId } }).then(r => r.data);
 export const listUsers = () => api.get('/users').then(r => r.data);
 export const getUserDirectory = () => api.get('/users/directory').then(r => r.data);
 export const createUser = (data) => api.post('/users', data).then(r => r.data);

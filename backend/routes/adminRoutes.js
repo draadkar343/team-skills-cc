@@ -16,5 +16,6 @@ router.post('/resume-template', auth, role('administrator'), resumeTemplateUploa
 router.delete('/resume-template', auth, role('administrator'), c.deleteResumeTemplate);
 router.get('/resume-template/generate', auth, c.generateResume);
 router.post('/resume-template/generate-bulk', auth, role('manager', 'administrator'), c.generateBulkResumes);
+router.get('/users-by-role', auth, role('manager', 'administrator'), c.getUsersByJobRole);
 
 module.exports = router;

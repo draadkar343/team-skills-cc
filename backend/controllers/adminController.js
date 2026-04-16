@@ -274,6 +274,21 @@ exports.generateBulkResumes = async (req, res, next) => {
   }
 };
 
+exports.getUsersByJobRole = async (req, res, next) => {
+  try {
+    const { jobRoleId } = req.query;
+    if (!jobRoleId) return res.status(400).json({ error: 'jobRoleId required' });
+    const { rows } = await db.query(
+      `SELECT u.id, u.first_name, u.last_name, u.role
+       FROM users u
+       WHERE u.job_role_id = $1 AND u.is_active = true
+       ORDER BY u.last_name, u.first_name`,
+      [jobRoleId]
+    );
+    res.json(rows);
+  } catch (err) { next(err); }
+};
+
 exports.getStats = async (_req, res, next) => {
   try {
     const [users, skills, timesheets, pendingSkills, pendingTimesheets] = await Promise.all([
